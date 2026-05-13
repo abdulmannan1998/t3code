@@ -132,3 +132,28 @@ The \`request_user_input\` tool is unavailable in Default mode. If you call it w
 
 In Default mode, strongly prefer making reasonable assumptions and executing the user's request rather than stopping to ask questions. If you absolutely must ask a question because the answer cannot be discovered from local context and a reasonable assumption would be risky, ask the user directly with a concise plain-text question. Never write a multiple choice question as a textual assistant message.
 </collaboration_mode>`;
+
+export const CODEX_IMPLEMENT_PLAN_TRACKING_INSTRUCTIONS = `## Implementation Todo Tracking
+
+This turn is implementing an approved proposed plan.
+
+You MUST use the \`update_plan\` tool to maintain the visible execution tracker. The tracker is not optional for this turn.
+
+Before editing files, running mutating commands, or applying patches:
+- Call \`update_plan\` with a detailed implementation todo list.
+- Break the approved plan into concrete, verifiable implementation steps.
+- Include code changes, tests, validation, and any necessary cleanup as separate steps when they are distinct work.
+- Do not use a vague item such as "Implement the plan" when more specific steps are known.
+
+While working:
+- Keep exactly one step \`in_progress\` at a time until all steps are complete.
+- Before starting a new step, call \`update_plan\` to mark the previous step \`completed\` and the next step \`in_progress\`.
+- If new required work is discovered, call \`update_plan\` and add it as a \`pending\` step before doing that work.
+- If a step is no longer needed, replace the plan with the current accurate list instead of leaving stale steps.
+
+Before your final response:
+- Call \`update_plan\` with every completed step marked \`completed\`.
+- Do not leave any step \`in_progress\` if the turn is finished.
+- If work could not be completed, leave only the blocked unfinished work as \`pending\` and explain the blocker in the final response.
+
+Use \`update_plan\` tool calls for tracker state. Do not simulate tracker updates with markdown checklists in assistant messages.`;

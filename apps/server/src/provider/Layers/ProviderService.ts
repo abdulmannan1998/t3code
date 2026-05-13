@@ -641,6 +641,7 @@ const makeProviderService = Effect.fn("makeProviderService")(function* (
       "provider.operation": "send-turn",
       "provider.thread_id": input.threadId,
       "provider.interaction_mode": input.interactionMode,
+      "provider.execution_tracking": input.executionTracking,
       "provider.attachment_count": input.attachments.length,
     });
     let metricProvider = "unknown";
@@ -675,6 +676,7 @@ const makeProviderService = Effect.fn("makeProviderService")(function* (
         provider: routed.adapter.provider,
         model: input.modelSelection?.model,
         interactionMode: input.interactionMode,
+        executionTracking: input.executionTracking,
         attachmentCount: input.attachments.length,
         hasInput: typeof input.input === "string" && input.input.trim().length > 0,
       });

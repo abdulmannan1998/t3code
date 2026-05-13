@@ -151,6 +151,16 @@ describe("ProviderSendTurnInput", () => {
     expect(getOptionValue(parsed.modelSelection?.options, "effort")).toBe("ultrathink");
     expect(getOptionValue(parsed.modelSelection?.options, "fastMode")).toBe(true);
   });
+
+  it("accepts required execution tracking", () => {
+    const parsed = decodeProviderSendTurnInput({
+      threadId: "thread-1",
+      input: "Implement the approved plan",
+      executionTracking: "required",
+    });
+
+    expect(parsed.executionTracking).toBe("required");
+  });
 });
 
 describe("providerInstanceId routing key (slice-2 invariant)", () => {

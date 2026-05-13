@@ -9,6 +9,7 @@ import * as CodexRpc from "effect-codex-app-server/rpc";
 
 import {
   CODEX_DEFAULT_MODE_DEVELOPER_INSTRUCTIONS,
+  CODEX_IMPLEMENT_PLAN_TRACKING_INSTRUCTIONS,
   CODEX_PLAN_MODE_DEVELOPER_INSTRUCTIONS,
 } from "../CodexDeveloperInstructions.ts";
 import {
@@ -122,6 +123,50 @@ describe("buildTurnStartParams", () => {
         },
       },
     });
+  });
+
+  it("adds implementation tracker instructions for default implementation turns", () => {
+    const params = Effect.runSync(
+      buildTurnStartParams({
+        threadId: "provider-thread-1",
+        runtimeMode: "full-access",
+        prompt: "PLEASE IMPLEMENT THIS PLAN:\n# Ship it",
+        model: "gpt-5.3-codex",
+        interactionMode: "default",
+        executionTracking: "required",
+      }),
+    );
+
+    assert.equal(params.collaborationMode?.mode, "default");
+    assert.equal(
+      params.collaborationMode?.settings.developer_instructions,
+      `${CODEX_DEFAULT_MODE_DEVELOPER_INSTRUCTIONS}\n\n${CODEX_IMPLEMENT_PLAN_TRACKING_INSTRUCTIONS}`,
+    );
+  });
+
+  it("does not add implementation tracker instructions to plan mode", () => {
+    const params = Effect.runSync(
+      buildTurnStartParams({
+        threadId: "provider-thread-1",
+        runtimeMode: "full-access",
+        prompt: "Refine the plan",
+        model: "gpt-5.3-codex",
+        interactionMode: "plan",
+        executionTracking: "required",
+      }),
+    );
+
+    assert.equal(params.collaborationMode?.mode, "plan");
+    assert.equal(
+      params.collaborationMode?.settings.developer_instructions,
+      CODEX_PLAN_MODE_DEVELOPER_INSTRUCTIONS,
+    );
+    assert.equal(
+      params.collaborationMode?.settings.developer_instructions.includes(
+        CODEX_IMPLEMENT_PLAN_TRACKING_INSTRUCTIONS,
+      ),
+      false,
+    );
   });
 
   it("omits collaboration mode when interaction mode is absent", () => {

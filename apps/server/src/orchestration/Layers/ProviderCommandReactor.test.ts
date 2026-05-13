@@ -446,11 +446,64 @@ describe("ProviderCommandReactor", () => {
       },
       runtimeMode: "approval-required",
     });
+    expect(harness.sendTurn.mock.calls[0]?.[0]).not.toHaveProperty("executionTracking");
 
     const readModel = await harness.readModel();
     const thread = readModel.threads.find((entry) => entry.id === ThreadId.make("thread-1"));
     expect(thread?.session?.threadId).toBe("thread-1");
     expect(thread?.session?.runtimeMode).toBe("approval-required");
+  });
+
+  it("requires execution tracking when implementing a proposed plan", async () => {
+    const harness = await createHarness();
+    const now = "2026-01-01T00:00:00.000Z";
+
+    await Effect.runPromise(
+      harness.engine.dispatch({
+        type: "thread.proposed-plan.upsert",
+        commandId: CommandId.make("cmd-plan-upsert-1"),
+        threadId: ThreadId.make("thread-1"),
+        proposedPlan: {
+          id: "plan-1",
+          turnId: null,
+          planMarkdown: "# Ship it\n\n- Implement the change",
+          implementedAt: null,
+          implementationThreadId: null,
+          createdAt: now,
+          updatedAt: now,
+        },
+        createdAt: now,
+      }),
+    );
+
+    await Effect.runPromise(
+      harness.engine.dispatch({
+        type: "thread.turn.start",
+        commandId: CommandId.make("cmd-turn-start-implementation-plan"),
+        threadId: ThreadId.make("thread-1"),
+        message: {
+          messageId: asMessageId("user-message-implementation-plan"),
+          role: "user",
+          text: "PLEASE IMPLEMENT THIS PLAN:\n# Ship it",
+          attachments: [],
+        },
+        interactionMode: "default",
+        runtimeMode: "approval-required",
+        sourceProposedPlan: {
+          threadId: ThreadId.make("thread-1"),
+          planId: "plan-1",
+        },
+        createdAt: now,
+      }),
+    );
+
+    await waitFor(() => harness.sendTurn.mock.calls.length === 1);
+    expect(harness.sendTurn.mock.calls[0]?.[0]).toMatchObject({
+      threadId: ThreadId.make("thread-1"),
+      input: "PLEASE IMPLEMENT THIS PLAN:\n# Ship it",
+      interactionMode: "default",
+      executionTracking: "required",
+    });
   });
 
   it("generates a thread title on the first turn", async () => {
