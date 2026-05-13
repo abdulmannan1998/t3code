@@ -104,6 +104,14 @@ export function buildThreadNotificationKey(
   return `${thread.environmentId}:${thread.id}:${state}:${turnId}:${timestamp}`;
 }
 
+function buildThreadNotificationOccurrenceKey(
+  thread: SidebarThreadSummary,
+  state: ThreadNotificationState,
+): string {
+  const turnId = thread.latestTurn?.turnId ?? thread.session?.activeTurnId ?? "no-turn";
+  return `${state}:${turnId}`;
+}
+
 export function deriveThreadNotificationIntent(
   thread: SidebarThreadSummary,
 ): ThreadNotificationIntent | null {
@@ -127,16 +135,27 @@ export function deriveThreadNotificationIntent(
 export function createThreadNotificationTracker(): ThreadNotificationTracker {
   const seededEnvironmentIds = new Set<EnvironmentId>();
   const seenKeys = new Set<string>();
+  const occurrenceByThreadKey = new Map<string, string>();
 
   return {
     collect: (threads, options) => {
       const bootstrappedEnvironmentIds = new Set(options.bootstrappedEnvironmentIds);
+      const currentThreadKeys = new Set<string>();
       const currentIntents = threads.flatMap((thread) => {
         if (!bootstrappedEnvironmentIds.has(thread.environmentId)) {
           return [];
         }
+        const threadRef = scopeThreadRef(thread.environmentId, thread.id);
+        const threadKey = scopedThreadKey(threadRef);
+        currentThreadKeys.add(threadKey);
+        const state = deriveThreadNotificationState(thread);
+        if (state === null) {
+          occurrenceByThreadKey.delete(threadKey);
+          return [];
+        }
+        const occurrenceKey = buildThreadNotificationOccurrenceKey(thread, state);
         const intent = deriveThreadNotificationIntent(thread);
-        return intent ? [intent] : [];
+        return intent ? [{ intent, occurrenceKey, threadKey }] : [];
       });
       const newlyBootstrappedEnvironmentIds = new Set(
         options.bootstrappedEnvironmentIds.filter(
@@ -145,9 +164,10 @@ export function createThreadNotificationTracker(): ThreadNotificationTracker {
       );
 
       if (newlyBootstrappedEnvironmentIds.size > 0) {
-        for (const intent of currentIntents) {
+        for (const { intent, occurrenceKey, threadKey } of currentIntents) {
           if (newlyBootstrappedEnvironmentIds.has(intent.threadRef.environmentId)) {
             seenKeys.add(intent.key);
+            occurrenceByThreadKey.set(threadKey, occurrenceKey);
           }
         }
         for (const environmentId of newlyBootstrappedEnvironmentIds) {
@@ -156,24 +176,31 @@ export function createThreadNotificationTracker(): ThreadNotificationTracker {
       }
 
       const nextIntents: ThreadNotificationIntent[] = [];
-      for (const intent of currentIntents) {
+      for (const { intent, occurrenceKey, threadKey } of currentIntents) {
         if (newlyBootstrappedEnvironmentIds.has(intent.threadRef.environmentId)) {
           continue;
         }
-        if (seenKeys.has(intent.key)) {
+        if (occurrenceByThreadKey.get(threadKey) === occurrenceKey || seenKeys.has(intent.key)) {
           continue;
         }
+        occurrenceByThreadKey.set(threadKey, occurrenceKey);
         seenKeys.add(intent.key);
         if (options.windowFocused && sameThreadRef(options.activeThreadRef, intent.threadRef)) {
           continue;
         }
         nextIntents.push(intent);
       }
+      for (const threadKey of occurrenceByThreadKey.keys()) {
+        if (!currentThreadKeys.has(threadKey)) {
+          occurrenceByThreadKey.delete(threadKey);
+        }
+      }
       return nextIntents;
     },
     reset: () => {
       seededEnvironmentIds.clear();
       seenKeys.clear();
+      occurrenceByThreadKey.clear();
     },
   };
 }

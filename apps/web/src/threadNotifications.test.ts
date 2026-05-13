@@ -172,6 +172,41 @@ describe("thread notification tracker", () => {
     expect(tracker.collect([completed], collectOptions())).toEqual([]);
   });
 
+  it("does not re-emit when the same actionable state receives a later projection update", () => {
+    const tracker = createThreadNotificationTracker();
+    const awaitingInput = thread({
+      hasPendingUserInput: true,
+      session: session({ activeTurnId: TurnId.make("turn-1") }),
+    });
+    const laterProjectionUpdate = thread({
+      hasPendingUserInput: true,
+      session: session({ activeTurnId: TurnId.make("turn-1") }),
+      updatedAt: "2026-05-14T10:00:00.500Z",
+    });
+
+    tracker.collect([thread()], collectOptions());
+    expect(tracker.collect([awaitingInput], collectOptions())).toHaveLength(1);
+    expect(tracker.collect([laterProjectionUpdate], collectOptions())).toEqual([]);
+  });
+
+  it("re-emits when an actionable state clears and returns", () => {
+    const tracker = createThreadNotificationTracker();
+    const awaitingInput = thread({
+      hasPendingUserInput: true,
+      session: session({ activeTurnId: TurnId.make("turn-1") }),
+    });
+    const laterAwaitingInput = thread({
+      hasPendingUserInput: true,
+      session: session({ activeTurnId: TurnId.make("turn-1") }),
+      updatedAt: "2026-05-14T10:01:00.000Z",
+    });
+
+    tracker.collect([thread()], collectOptions());
+    expect(tracker.collect([awaitingInput], collectOptions())).toHaveLength(1);
+    expect(tracker.collect([thread()], collectOptions())).toEqual([]);
+    expect(tracker.collect([laterAwaitingInput], collectOptions())).toHaveLength(1);
+  });
+
   it("emits once for a new turn state", () => {
     const tracker = createThreadNotificationTracker();
     const first = thread({ latestTurn: latestTurn() });
