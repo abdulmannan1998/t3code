@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>T3 Code Fork Workflow</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #f7f7f4;
+        --panel: #ffffff;
+        --text: #1f2522;
+        --muted: #5c665f;
+        --border: #d9ded8;
+        --accent: #23614d;
+        --code-bg: #eef1ed;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #111513;
+          --panel: #191f1c;
+          --text: #eef2ef;
+          --muted: #aab4ad;
+          --border: #2e3732;
+          --accent: #7ed3ad;
+          --code-bg: #222a26;
+        }
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family:
+          Inter,
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+        line-height: 1.6;
+      }
+
+      main {
+        width: min(960px, calc(100% - 32px));
+        margin: 0 auto;
+        padding: 48px 0 72px;
+      }
+
+      header {
+        margin-bottom: 32px;
+      }
+
+      h1,
+      h2 {
+        line-height: 1.15;
+      }
+
+      h1 {
+        margin: 0 0 12px;
+        font-size: clamp(2rem, 5vw, 3.75rem);
+        letter-spacing: 0;
+      }
+
+      h2 {
+        margin: 0 0 16px;
+        font-size: 1.35rem;
+      }
+
+      p {
+        margin: 0 0 16px;
+      }
+
+      .lede {
+        max-width: 720px;
+        color: var(--muted);
+        font-size: 1.1rem;
+      }
+
+      .grid {
+        display: grid;
+        gap: 16px;
+      }
+
+      @media (min-width: 760px) {
+        .grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      section {
+        margin-top: 16px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--panel);
+        padding: 24px;
+      }
+
+      ul,
+      ol {
+        margin: 0;
+        padding-left: 1.25rem;
+      }
+
+      li + li {
+        margin-top: 8px;
+      }
+
+      code {
+        border-radius: 5px;
+        background: var(--code-bg);
+        padding: 0.12rem 0.32rem;
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        font-size: 0.92em;
+      }
+
+      pre {
+        overflow-x: auto;
+        border-radius: 8px;
+        background: var(--code-bg);
+        padding: 16px;
+      }
+
+      pre code {
+        background: transparent;
+        padding: 0;
+      }
+
+      .callout {
+        border-left: 4px solid var(--accent);
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>T3 Code fork workflow</h1>
+        <p class="lede">
+          Use this repository as a customized product fork while still being able to pull
+          improvements from the original upstream project.
+        </p>
+      </header>
+
+      <section class="callout">
+        <h2>Current mental model</h2>
+        <p>
+          Treat <code>main</code> as the clean upstream mirror and <code>custom</code> as the
+          long-lived product branch for local customization.
+        </p>
+        <ul>
+          <li><code>upstream/main</code>: original project.</li>
+          <li><code>origin/main</code>: this fork's clean mirror of upstream.</li>
+          <li><code>origin/custom</code>: customized product branch.</li>
+          <li><code>feature/*</code>: individual changes started from <code>custom</code>.</li>
+        </ul>
+      </section>
+
+      <div class="grid">
+        <section>
+          <h2>Start a feature</h2>
+          <pre><code>git checkout custom
+git pull
+git checkout -b feature/my-change</code></pre>
+          <p>
+            Keep feature branches small enough to review and merge back into
+            <code>custom</code> without mixing unrelated ideas.
+          </p>
+        </section>
+
+        <section>
+          <h2>Finish a feature</h2>
+          <pre><code>bun fmt
+bun lint
+bun typecheck
+git status
+git add .
+git commit -m "Add my change"
+git checkout custom
+git merge feature/my-change
+git push</code></pre>
+          <p>
+            If tests are needed, use <code>bun run test</code>. Do not run <code>bun test</code> in
+            this repository.
+          </p>
+        </section>
+      </div>
+
+      <section>
+        <h2>Bring in upstream changes</h2>
+        <ol>
+          <li>Update the clean mirror branch from the original repository.</li>
+          <li>Merge that updated mirror into the customized branch.</li>
+          <li>Resolve conflicts on <code>custom</code>, where the product changes live.</li>
+        </ol>
+        <pre><code>git checkout main
+git fetch upstream
+git merge upstream/main
+git push origin main
+
+git checkout custom
+git merge main
+git push</code></pre>
+      </section>
+
+      <section>
+        <h2>Contributing back upstream</h2>
+        <p>
+          If a change should go back to the original project, start that branch from clean
+          <code>main</code>, not from <code>custom</code>.
+        </p>
+        <pre><code>git checkout main
+git pull origin main
+git checkout -b feature/upstream-fix</code></pre>
+      </section>
+
+      <section>
+        <h2>Safety rules</h2>
+        <ul>
+          <li>
+            Use <code>merge</code>, not <code>rebase</code>, for the long-lived
+            <code>custom</code> branch.
+          </li>
+          <li>Keep <code>main</code> boring and close to upstream.</li>
+          <li>
+            Make customization decisions on <code>custom</code>, then isolate each feature in a
+            short-lived branch.
+          </li>
+          <li>
+            Run <code>bun fmt</code>, <code>bun lint</code>, and <code>bun typecheck</code> before
+            calling work complete.
+          </li>
+        </ul>
+      </section>
+    </main>
+  </body>
+</html>
