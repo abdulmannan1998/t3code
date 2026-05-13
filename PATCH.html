@@ -383,6 +383,14 @@
                 <dt>Finalized at</dt>
                 <dd><time datetime="2026-05-14T00:43:35+05:00">2026-05-14 00:43:35 +0500</time></dd>
               </div>
+              <div class="metadata-item">
+                <dt>Follow-up fix branch</dt>
+                <dd><code>custom/fix-react-185-notifications</code></dd>
+              </div>
+              <div class="metadata-item">
+                <dt>Follow-up finalized at</dt>
+                <dd><time datetime="2026-05-14T01:34:51+05:00">2026-05-14 01:34:51 +0500</time></dd>
+              </div>
             </dl>
 
             <div class="entry-sections">
@@ -402,6 +410,10 @@
                   <li>
                     <code>fc7efe66</code>
                     <span>Add desktop thread notifications.</span>
+                  </li>
+                  <li>
+                    <code>bedb76ea</code>
+                    <span>Fix React maximum update depth crash in thread notifications.</span>
                   </li>
                 </ul>
               </section>
@@ -426,6 +438,18 @@
                     Focus suppression applies only to the active thread in a focused window;
                     inactive threads can still notify while the app is focused.
                   </li>
+                  <li>
+                    <code>ThreadNotificationCoordinator</code> must subscribe to
+                    <code>selectSidebarThreadsAcrossEnvironments</code> with
+                    <code>useShallow</code>. The selector returns a derived array, and subscribing
+                    without shallow comparison can trigger React maximum update depth failures in
+                    installed Electron builds.
+                  </li>
+                  <li>
+                    Browser regression coverage lives in
+                    <code>ThreadNotificationCoordinator.browser.tsx</code> and verifies startup
+                    stability, initial snapshot seeding, and later notification transitions.
+                  </li>
                 </ul>
               </section>
 
@@ -440,6 +464,11 @@
                     <li>
                       If upstream changes sidebar thread summaries, keep notification intent
                       priority aligned with the visible sidebar state.
+                    </li>
+                    <li>
+                      If upstream changes Zustand selectors or React external-store wiring, preserve
+                      shallow comparison for derived sidebar-thread arrays in app-level
+                      coordinators.
                     </li>
                     <li>
                       Signed macOS builds are expected for reliable OS notification delivery, but
