@@ -60,7 +60,7 @@ import type {
   OrchestrationSubscribeThreadInput,
   OrchestrationThreadStreamItem,
 } from "./orchestration.ts";
-import { EnvironmentId } from "./baseSchemas.ts";
+import { EnvironmentId, ThreadId } from "./baseSchemas.ts";
 import { AuthBearerBootstrapResult, AuthSessionState, AuthWebSocketTokenResult } from "./auth.ts";
 import { AdvertisedEndpoint } from "./remoteAccess.ts";
 import { EditorId } from "./editor.ts";
@@ -367,6 +367,54 @@ export const PickFolderOptionsSchema = Schema.Struct({
   initialPath: Schema.optionalKey(Schema.NullOr(Schema.String)),
 });
 
+export const DesktopNotificationKindSchema = Schema.Literals([
+  "thread.pending-approval",
+  "thread.awaiting-input",
+  "thread.plan-ready",
+  "thread.completed",
+  "thread.error",
+  "permission-test",
+]);
+export type DesktopNotificationKind = typeof DesktopNotificationKindSchema.Type;
+
+export const DesktopNotificationRouteSchema = Schema.Struct({
+  environmentId: EnvironmentId,
+  threadId: ThreadId,
+});
+export type DesktopNotificationRoute = typeof DesktopNotificationRouteSchema.Type;
+
+export const DesktopNotificationInputSchema = Schema.Struct({
+  id: Schema.String,
+  kind: DesktopNotificationKindSchema,
+  title: Schema.String,
+  body: Schema.String,
+  subtitle: Schema.optionalKey(Schema.String),
+  groupId: Schema.optionalKey(Schema.String),
+  silent: Schema.optionalKey(Schema.Boolean),
+  route: Schema.optionalKey(DesktopNotificationRouteSchema),
+});
+export type DesktopNotificationInput = typeof DesktopNotificationInputSchema.Type;
+
+export const DesktopNotificationShowResultSchema = Schema.Struct({
+  shown: Schema.Boolean,
+  reason: Schema.Literals(["shown", "unsupported", "failed"]),
+  message: Schema.optionalKey(Schema.String),
+});
+export type DesktopNotificationShowResult = typeof DesktopNotificationShowResultSchema.Type;
+
+export const DesktopNotificationActivationSchema = Schema.Struct({
+  id: Schema.String,
+  kind: DesktopNotificationKindSchema,
+  route: Schema.optionalKey(DesktopNotificationRouteSchema),
+});
+export type DesktopNotificationActivation = typeof DesktopNotificationActivationSchema.Type;
+
+export const DesktopNotificationSupportSchema = Schema.Struct({
+  supported: Schema.Boolean,
+  platform: Schema.String,
+});
+export type DesktopNotificationSupport = typeof DesktopNotificationSupportSchema.Type;
+
 export interface DesktopBridge {
   getAppBranding: () => DesktopAppBranding | null;
   getLocalEnvironmentBootstrap: () => DesktopEnvironmentBootstrap | null;
@@ -413,6 +461,11 @@ export interface DesktopBridge {
   ) => Promise<T | null>;
   openExternal: (url: string) => Promise<boolean>;
   onMenuAction: (listener: (action: string) => void) => () => void;
+  getNotificationSupport: () => Promise<DesktopNotificationSupport>;
+  showNotification: (input: DesktopNotificationInput) => Promise<DesktopNotificationShowResult>;
+  onNotificationActivated: (
+    listener: (activation: DesktopNotificationActivation) => void,
+  ) => () => void;
   getUpdateState: () => Promise<DesktopUpdateState>;
   setUpdateChannel: (channel: DesktopUpdateChannel) => Promise<DesktopUpdateState>;
   checkForUpdate: () => Promise<DesktopUpdateCheckResult>;
