@@ -321,6 +321,119 @@ describe("deriveMessagesTimelineRows", () => {
     expect(assistantRows[1]?.completionSummary).toBe("done");
   });
 
+  it("hides only the active in-progress assistant turn diff summary", () => {
+    const earlierTurnDiffSummary = {
+      turnId: "turn-1" as never,
+      completedAt: "2026-01-01T00:00:11Z",
+      assistantMessageId: "assistant-one" as never,
+      checkpointTurnCount: 1,
+      files: [{ path: "src/earlier.ts", additions: 1, deletions: 0 }],
+    };
+    const activeTurnDiffSummary = {
+      turnId: "turn-2" as never,
+      completedAt: "2026-01-01T00:00:30Z",
+      assistantMessageId: "assistant-two" as never,
+      checkpointTurnCount: 2,
+      files: [{ path: "src/active.ts", additions: 3, deletions: 1 }],
+    };
+
+    const rows = deriveMessagesTimelineRows({
+      timelineEntries: [
+        {
+          id: "assistant-one-entry",
+          kind: "message",
+          createdAt: "2026-01-01T00:00:10Z",
+          message: {
+            id: "assistant-one" as never,
+            role: "assistant",
+            text: "Earlier response.",
+            turnId: "turn-1" as never,
+            createdAt: "2026-01-01T00:00:10Z",
+            completedAt: "2026-01-01T00:00:11Z",
+            streaming: false,
+          },
+        },
+        {
+          id: "assistant-two-entry",
+          kind: "message",
+          createdAt: "2026-01-01T00:00:20Z",
+          message: {
+            id: "assistant-two" as never,
+            role: "assistant",
+            text: "Active response.",
+            turnId: "turn-2" as never,
+            createdAt: "2026-01-01T00:00:20Z",
+            completedAt: "2026-01-01T00:00:30Z",
+            streaming: false,
+          },
+        },
+      ],
+      completionDividerBeforeEntryId: null,
+      isWorking: false,
+      activeTurnInProgress: true,
+      activeTurnId: "turn-2" as never,
+      activeTurnStartedAt: null,
+      turnDiffSummaryByAssistantMessageId: new Map([
+        ["assistant-one" as never, earlierTurnDiffSummary],
+        ["assistant-two" as never, activeTurnDiffSummary],
+      ]),
+      revertTurnCountByUserMessageId: new Map(),
+    });
+
+    const assistantRows = rows.filter(
+      (row): row is Extract<(typeof rows)[number], { kind: "message" }> =>
+        row.kind === "message" && row.message.role === "assistant",
+    );
+
+    expect(assistantRows[0]?.assistantTurnDiffSummary).toBe(earlierTurnDiffSummary);
+    expect(assistantRows[1]?.assistantTurnDiffSummary).toBeUndefined();
+  });
+
+  it("shows the active turn diff summary once the turn is no longer in progress", () => {
+    const activeTurnDiffSummary = {
+      turnId: "turn-2" as never,
+      completedAt: "2026-01-01T00:00:30Z",
+      assistantMessageId: "assistant-two" as never,
+      checkpointTurnCount: 2,
+      files: [{ path: "src/active.ts", additions: 3, deletions: 1 }],
+    };
+
+    const rows = deriveMessagesTimelineRows({
+      timelineEntries: [
+        {
+          id: "assistant-two-entry",
+          kind: "message",
+          createdAt: "2026-01-01T00:00:20Z",
+          message: {
+            id: "assistant-two" as never,
+            role: "assistant",
+            text: "Settled response.",
+            turnId: "turn-2" as never,
+            createdAt: "2026-01-01T00:00:20Z",
+            completedAt: "2026-01-01T00:00:30Z",
+            streaming: false,
+          },
+        },
+      ],
+      completionDividerBeforeEntryId: null,
+      isWorking: false,
+      activeTurnInProgress: false,
+      activeTurnId: "turn-2" as never,
+      activeTurnStartedAt: null,
+      turnDiffSummaryByAssistantMessageId: new Map([
+        ["assistant-two" as never, activeTurnDiffSummary],
+      ]),
+      revertTurnCountByUserMessageId: new Map(),
+    });
+
+    const assistantRow = rows.find(
+      (row): row is Extract<(typeof rows)[number], { kind: "message" }> =>
+        row.kind === "message" && row.message.role === "assistant",
+    );
+
+    expect(assistantRow?.assistantTurnDiffSummary).toBe(activeTurnDiffSummary);
+  });
+
   it("projects assistant diff summaries and user revert counts onto the affected rows", () => {
     const assistantTurnDiffSummary = {
       turnId: "turn-1" as never,
