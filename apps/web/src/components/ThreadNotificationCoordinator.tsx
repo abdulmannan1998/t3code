@@ -1,5 +1,7 @@
+import { scopeThreadRef } from "@t3tools/client-runtime";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { selectSidebarThreadsAcrossEnvironments, useStore } from "../store";
 import { buildThreadRouteParams, resolveThreadRouteTarget } from "../threadRoutes";
 import { createThreadNotificationTracker } from "../threadNotifications";
@@ -19,9 +21,18 @@ export function ThreadNotificationCoordinator() {
     strict: false,
     select: (params) => resolveThreadRouteTarget(params),
   });
-  const activeThreadRef = routeTarget?.kind === "server" ? routeTarget.threadRef : null;
+  const activeEnvironmentId =
+    routeTarget?.kind === "server" ? routeTarget.threadRef.environmentId : null;
+  const activeThreadId = routeTarget?.kind === "server" ? routeTarget.threadRef.threadId : null;
+  const activeThreadRef = useMemo(
+    () =>
+      activeEnvironmentId && activeThreadId
+        ? scopeThreadRef(activeEnvironmentId, activeThreadId)
+        : null,
+    [activeEnvironmentId, activeThreadId],
+  );
   const enabled = useSettings((settings) => settings.desktopThreadNotificationsEnabled);
-  const threads = useStore(selectSidebarThreadsAcrossEnvironments);
+  const threads = useStore(useShallow(selectSidebarThreadsAcrossEnvironments));
   const tracker = useMemo(() => createThreadNotificationTracker(), []);
   const [windowFocused, setWindowFocused] = useState(readDocumentFocused);
 
