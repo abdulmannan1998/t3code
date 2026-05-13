@@ -1,8 +1,9 @@
+import type { EnvironmentId } from "@t3tools/contracts";
 import { scopeThreadRef } from "@t3tools/client-runtime";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
-import { selectSidebarThreadsAcrossEnvironments, useStore } from "../store";
+import { type AppState, selectSidebarThreadsAcrossEnvironments, useStore } from "../store";
 import { buildThreadRouteParams, resolveThreadRouteTarget } from "../threadRoutes";
 import { createThreadNotificationTracker } from "../threadNotifications";
 import { useSettings } from "../hooks/useSettings";
@@ -13,6 +14,12 @@ function readDocumentFocused(): boolean {
     return false;
   }
   return document.visibilityState === "visible" && document.hasFocus();
+}
+
+function selectBootstrappedEnvironmentIds(state: AppState): EnvironmentId[] {
+  return Object.entries(state.environmentStateById).flatMap(([environmentId, environmentState]) =>
+    environmentState.bootstrapComplete ? [environmentId as EnvironmentId] : [],
+  );
 }
 
 export function ThreadNotificationCoordinator() {
@@ -33,6 +40,7 @@ export function ThreadNotificationCoordinator() {
   );
   const enabled = useSettings((settings) => settings.desktopThreadNotificationsEnabled);
   const threads = useStore(useShallow(selectSidebarThreadsAcrossEnvironments));
+  const bootstrappedEnvironmentIds = useStore(useShallow(selectBootstrappedEnvironmentIds));
   const tracker = useMemo(() => createThreadNotificationTracker(), []);
   const [windowFocused, setWindowFocused] = useState(readDocumentFocused);
 
@@ -60,6 +68,7 @@ export function ThreadNotificationCoordinator() {
 
     const intents = tracker.collect(threads, {
       activeThreadRef,
+      bootstrappedEnvironmentIds,
       windowFocused,
     });
 
@@ -89,7 +98,7 @@ export function ThreadNotificationCoordinator() {
           });
         });
     }
-  }, [activeThreadRef, enabled, threads, tracker, windowFocused]);
+  }, [activeThreadRef, bootstrappedEnvironmentIds, enabled, threads, tracker, windowFocused]);
 
   useEffect(() => {
     const bridge = window.desktopBridge;

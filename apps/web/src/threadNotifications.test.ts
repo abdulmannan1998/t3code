@@ -58,6 +58,19 @@ function thread(overrides: Partial<SidebarThreadSummary> = {}): SidebarThreadSum
   };
 }
 
+function collectOptions(
+  overrides: Partial<
+    Parameters<ReturnType<typeof createThreadNotificationTracker>["collect"]>[1]
+  > = {},
+): Parameters<ReturnType<typeof createThreadNotificationTracker>["collect"]>[1] {
+  return {
+    activeThreadRef: null,
+    bootstrappedEnvironmentIds: [environmentId],
+    windowFocused: false,
+    ...overrides,
+  };
+}
+
 describe("thread notification derivation", () => {
   it("derives pending approval intents", () => {
     const summary = thread({ hasPendingApprovals: true });
@@ -146,9 +159,7 @@ describe("thread notification tracker", () => {
     const tracker = createThreadNotificationTracker();
     const summary = thread({ latestTurn: latestTurn() });
 
-    expect(
-      tracker.collect([summary], { activeThreadRef: null, windowFocused: false }),
-    ).toHaveLength(0);
+    expect(tracker.collect([summary], collectOptions())).toHaveLength(0);
   });
 
   it("does not emit the same key twice", () => {
@@ -156,13 +167,9 @@ describe("thread notification tracker", () => {
     const initial = thread();
     const completed = thread({ latestTurn: latestTurn() });
 
-    expect(tracker.collect([initial], { activeThreadRef: null, windowFocused: false })).toEqual([]);
-    expect(
-      tracker.collect([completed], { activeThreadRef: null, windowFocused: false }),
-    ).toHaveLength(1);
-    expect(tracker.collect([completed], { activeThreadRef: null, windowFocused: false })).toEqual(
-      [],
-    );
+    expect(tracker.collect([initial], collectOptions())).toEqual([]);
+    expect(tracker.collect([completed], collectOptions())).toHaveLength(1);
+    expect(tracker.collect([completed], collectOptions())).toEqual([]);
   });
 
   it("emits once for a new turn state", () => {
@@ -175,13 +182,23 @@ describe("thread notification tracker", () => {
       }),
     });
 
-    tracker.collect([thread()], { activeThreadRef: null, windowFocused: false });
-    expect(tracker.collect([first], { activeThreadRef: null, windowFocused: false })).toHaveLength(
-      1,
-    );
-    expect(tracker.collect([second], { activeThreadRef: null, windowFocused: false })).toHaveLength(
-      1,
-    );
+    tracker.collect([thread()], collectOptions());
+    expect(tracker.collect([first], collectOptions())).toHaveLength(1);
+    expect(tracker.collect([second], collectOptions())).toHaveLength(1);
+  });
+
+  it("does not emit when an environment first becomes bootstrapped", () => {
+    const tracker = createThreadNotificationTracker();
+    const actionable = thread({ hasPendingUserInput: true });
+
+    expect(
+      tracker.collect([actionable], {
+        activeThreadRef: null,
+        bootstrappedEnvironmentIds: [],
+        windowFocused: false,
+      }),
+    ).toEqual([]);
+    expect(tracker.collect([actionable], collectOptions())).toEqual([]);
   });
 
   it("suppresses focused active threads while allowing focused inactive threads", () => {
@@ -193,9 +210,13 @@ describe("thread notification tracker", () => {
       latestTurn: latestTurn({ turnId: TurnId.make("turn-2") }),
     });
 
-    tracker.collect([thread()], { activeThreadRef: activeRef, windowFocused: true });
+    tracker.collect(
+      [thread()],
+      collectOptions({ activeThreadRef: activeRef, windowFocused: true }),
+    );
     const intents = tracker.collect([active, inactive], {
       activeThreadRef: activeRef,
+      bootstrappedEnvironmentIds: [environmentId],
       windowFocused: true,
     });
 
