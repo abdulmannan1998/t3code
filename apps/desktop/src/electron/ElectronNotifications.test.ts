@@ -168,6 +168,34 @@ describe("ElectronNotifications", () => {
     }).pipe(Effect.provide(notificationLayer({}))),
   );
 
+  it.effect("suppresses duplicate notifications with the same live id", () =>
+    Effect.gen(function* () {
+      const notifications = yield* ElectronNotifications.ElectronNotifications;
+      const input = notificationInput();
+
+      const first = yield* notifications.show(input);
+      const second = yield* notifications.show(input);
+
+      assert.deepEqual(first, { shown: true, reason: "shown" });
+      assert.deepEqual(second, { shown: true, reason: "shown" });
+      assert.equal(notificationInstances.length, 1);
+      assert.equal(notificationInstances[0]?.show.mock.calls.length, 1);
+    }).pipe(Effect.provide(notificationLayer({}))),
+  );
+
+  it.effect("allows the same notification id again after the live notification closes", () =>
+    Effect.gen(function* () {
+      const notifications = yield* ElectronNotifications.ElectronNotifications;
+      const input = notificationInput();
+
+      yield* notifications.show(input);
+      notificationInstances[0]?.emit("close");
+      yield* notifications.show(input);
+
+      assert.equal(notificationInstances.length, 2);
+    }).pipe(Effect.provide(notificationLayer({}))),
+  );
+
   it.effect("emits activation payloads and reveals the window when clicked", () => {
     const mainWindow = {} as Electron.BrowserWindow;
     const activations: DesktopNotificationActivation[] = [];

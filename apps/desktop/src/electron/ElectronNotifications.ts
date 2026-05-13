@@ -67,6 +67,9 @@ const make = Effect.gen(function* () {
         if (!Electron.Notification.isSupported()) {
           return Promise.resolve({ shown: false, reason: "unsupported" });
         }
+        if (liveNotifications.has(input.id)) {
+          return Promise.resolve({ shown: true, reason: "shown" });
+        }
 
         return new Promise<DesktopNotificationShowResult>((resolve) => {
           let settled = false;
