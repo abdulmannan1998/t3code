@@ -27,8 +27,10 @@ Long term maintainability is a core priority. If you add new functionality, firs
 
 - Branches created from `main` must use the `main/*` naming pattern.
 - Branches created from `custom` must use the `custom/*` naming pattern.
-- Work on `custom/*` branches must maintain a `PATCH.md` file in the repository root.
-- `PATCH.md` should document the product patches being carried on the custom branch, including feature intent, relevant commits, implementation notes, and any context needed to resolve future conflicts when merging upstream changes back into `main`.
+- `PATCH.md` is the cumulative patch record for every custom feature branch merged into `custom/base`.
+- Each custom feature entry in `PATCH.md` must include the source feature branch, feature intent, relevant commits, implementation notes, upstream merge/conflict context, and the finalization timestamp for that branch.
+- Do not update `PATCH.md` while working on a `custom/*` feature branch.
+- Update `PATCH.md` only after the `custom/*` feature branch has been merged into `custom/base`, and make that edit directly on `custom/base` so the custom base branch contains the full patch record.
 
 ## Package Roles
 
