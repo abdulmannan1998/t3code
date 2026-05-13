@@ -399,6 +399,14 @@
                 <dt>Duplicate/startup fix finalized at</dt>
                 <dd><time datetime="2026-05-14T01:55:08+05:00">2026-05-14 01:55:08 +0500</time></dd>
               </div>
+              <div class="metadata-item">
+                <dt>Projection-update dedupe fix</dt>
+                <dd><code>custom/base</code> direct follow-up</dd>
+              </div>
+              <div class="metadata-item">
+                <dt>Projection-update dedupe finalized at</dt>
+                <dd><time datetime="2026-05-14T02:07:43+05:00">2026-05-14 02:07:43 +0500</time></dd>
+              </div>
             </dl>
 
             <div class="entry-sections">
@@ -430,6 +438,10 @@
                   <li>
                     <code>7acb13b9</code>
                     <span>Seed thread notifications after sidebar bootstrap.</span>
+                  </li>
+                  <li>
+                    <code>a88eae38</code>
+                    <span>Prevent duplicate thread notification emits on projection updates.</span>
                   </li>
                 </ul>
               </section>
@@ -475,6 +487,16 @@
                     Startup seeding is tracked per bootstrapped environment so restored sidebar
                     state does not emit a notification immediately when the app launches.
                   </li>
+                  <li>
+                    Renderer duplicate suppression now tracks notification occurrences by thread,
+                    actionable state, and turn id so timestamp-only projection updates do not emit
+                    another desktop notification for the same pending state.
+                  </li>
+                  <li>
+                    Unit coverage verifies that a repeated actionable state with a later
+                    <code>updatedAt</code> is suppressed, while a state that clears and later
+                    returns can notify again.
+                  </li>
                 </ul>
               </section>
 
@@ -499,6 +521,12 @@
                       If upstream changes environment bootstrap or sidebar hydration state, keep
                       notification seeding tied to the first bootstrapped sidebar snapshot for each
                       environment rather than the first render.
+                    </li>
+                    <li>
+                      If upstream changes sidebar projection timestamps or notification key
+                      construction, preserve occurrence-level dedupe. A second update for the same
+                      thread, same actionable state, and same turn must not create another OS
+                      notification merely because <code>updatedAt</code> changed.
                     </li>
                     <li>
                       Signed macOS builds are expected for reliable OS notification delivery, but
