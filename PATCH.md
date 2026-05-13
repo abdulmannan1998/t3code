@@ -2,7 +2,8 @@
 
 ## Branch
 
-- `custom/changed-files-widget-behavior`
+- Carried on `custom/base`.
+- Source feature branch: `custom/changed-files-widget-behavior`.
 
 ## Feature Intent
 
@@ -10,8 +11,8 @@ Hide the active-turn Changed files timeline card while an agent turn is still in
 
 ## Commits
 
-- Feature branch commit: Hide active turn changed files widget.
-- Final commit hashes should be recorded on `custom/base` after this branch is merged.
+- `fd22bdd3` - Hide active turn changed files widget.
+- `d341c894` - Merge changed files widget behavior into custom.
 
 ## Implementation Notes
 
@@ -22,4 +23,4 @@ Hide the active-turn Changed files timeline card while an agent turn is still in
 ## Upstream Merge Context
 
 - Use this record to preserve the product intent and implementation context when resolving conflicts from upstream changes.
-- After this feature branch is merged back into the custom base branch, keep editing and maintaining this `PATCH.md` file on `custom/base` so the full patch record is available from the custom branch itself.
+- Keep editing and maintaining this `PATCH.md` file directly on `custom/base` after feature merges so the full patch record stays available from the custom branch itself.
