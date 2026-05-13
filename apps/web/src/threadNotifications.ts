@@ -1,5 +1,5 @@
 import { scopedThreadKey, scopeThreadRef } from "@t3tools/client-runtime";
-import type { DesktopNotificationKind, ScopedThreadRef } from "@t3tools/contracts";
+import type { DesktopNotificationKind, EnvironmentId, ScopedThreadRef } from "@t3tools/contracts";
 import { isLatestTurnSettled } from "./session-logic";
 import type { SidebarThreadSummary } from "./types";
 
@@ -24,6 +24,7 @@ export interface ThreadNotificationTracker {
     threads: readonly SidebarThreadSummary[],
     options: {
       readonly activeThreadRef: ScopedThreadRef | null;
+      readonly bootstrappedEnvironmentIds: readonly EnvironmentId[];
       readonly windowFocused: boolean;
     },
   ) => ThreadNotificationIntent[];
@@ -124,26 +125,41 @@ export function deriveThreadNotificationIntent(
 }
 
 export function createThreadNotificationTracker(): ThreadNotificationTracker {
-  let seeded = false;
+  const seededEnvironmentIds = new Set<EnvironmentId>();
   const seenKeys = new Set<string>();
 
   return {
     collect: (threads, options) => {
+      const bootstrappedEnvironmentIds = new Set(options.bootstrappedEnvironmentIds);
       const currentIntents = threads.flatMap((thread) => {
+        if (!bootstrappedEnvironmentIds.has(thread.environmentId)) {
+          return [];
+        }
         const intent = deriveThreadNotificationIntent(thread);
         return intent ? [intent] : [];
       });
+      const newlyBootstrappedEnvironmentIds = new Set(
+        options.bootstrappedEnvironmentIds.filter(
+          (environmentId) => !seededEnvironmentIds.has(environmentId),
+        ),
+      );
 
-      if (!seeded) {
+      if (newlyBootstrappedEnvironmentIds.size > 0) {
         for (const intent of currentIntents) {
-          seenKeys.add(intent.key);
+          if (newlyBootstrappedEnvironmentIds.has(intent.threadRef.environmentId)) {
+            seenKeys.add(intent.key);
+          }
         }
-        seeded = true;
-        return [];
+        for (const environmentId of newlyBootstrappedEnvironmentIds) {
+          seededEnvironmentIds.add(environmentId);
+        }
       }
 
       const nextIntents: ThreadNotificationIntent[] = [];
       for (const intent of currentIntents) {
+        if (newlyBootstrappedEnvironmentIds.has(intent.threadRef.environmentId)) {
+          continue;
+        }
         if (seenKeys.has(intent.key)) {
           continue;
         }
@@ -156,7 +172,7 @@ export function createThreadNotificationTracker(): ThreadNotificationTracker {
       return nextIntents;
     },
     reset: () => {
-      seeded = false;
+      seededEnvironmentIds.clear();
       seenKeys.clear();
     },
   };

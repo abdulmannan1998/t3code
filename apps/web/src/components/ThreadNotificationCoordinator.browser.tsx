@@ -83,7 +83,10 @@ function summary(overrides: Partial<SidebarThreadSummary> = {}): SidebarThreadSu
   };
 }
 
-function environmentState(threadSummary: SidebarThreadSummary): EnvironmentState {
+function environmentState(
+  threadSummary: SidebarThreadSummary,
+  options: { readonly bootstrapComplete?: boolean } = {},
+): EnvironmentState {
   return {
     projectIds: [],
     projectById: {},
@@ -103,15 +106,18 @@ function environmentState(threadSummary: SidebarThreadSummary): EnvironmentState
     sidebarThreadSummaryById: {
       [threadSummary.id]: threadSummary,
     },
-    bootstrapComplete: true,
+    bootstrapComplete: options.bootstrapComplete ?? true,
   };
 }
 
-function seedStore(threadSummary: SidebarThreadSummary) {
+function seedStore(
+  threadSummary: SidebarThreadSummary,
+  options: { readonly bootstrapComplete?: boolean } = {},
+) {
   useStore.setState({
     activeEnvironmentId: environmentId,
     environmentStateById: {
-      [environmentId]: environmentState(threadSummary),
+      [environmentId]: environmentState(threadSummary, options),
     },
   });
 }
@@ -132,6 +138,24 @@ function updateThreadSummary(threadSummary: SidebarThreadSummary) {
           ...previousEnvironmentState.sidebarThreadSummaryById,
           [threadSummary.id]: threadSummary,
         },
+      },
+    },
+  });
+}
+
+function updateBootstrapComplete(bootstrapComplete: boolean) {
+  const state = useStore.getState();
+  const previousEnvironmentState = state.environmentStateById[environmentId];
+  if (!previousEnvironmentState) {
+    throw new Error("Test environment state was not seeded.");
+  }
+
+  useStore.setState({
+    environmentStateById: {
+      ...state.environmentStateById,
+      [environmentId]: {
+        ...previousEnvironmentState,
+        bootstrapComplete,
       },
     },
   });
@@ -224,6 +248,30 @@ describe("ThreadNotificationCoordinator", () => {
     const mounted = await renderCoordinator();
 
     try {
+      await waitForEffects();
+      expect(showNotification).not.toHaveBeenCalled();
+    } finally {
+      await mounted.unmount();
+    }
+  });
+
+  it("does not notify when the first real sidebar snapshot arrives after startup", async () => {
+    settingsHarness.desktopThreadNotificationsEnabled = true;
+    seedStore(
+      summary({
+        hasPendingUserInput: true,
+        session: session({ activeTurnId: TurnId.make("turn-1") }),
+      }),
+      { bootstrapComplete: false },
+    );
+    const { showNotification } = installDesktopBridge();
+    const mounted = await renderCoordinator("active-thread" as ThreadId);
+
+    try {
+      await waitForEffects();
+      expect(showNotification).not.toHaveBeenCalled();
+
+      updateBootstrapComplete(true);
       await waitForEffects();
       expect(showNotification).not.toHaveBeenCalled();
     } finally {
