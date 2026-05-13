@@ -363,6 +363,94 @@
             </div>
           </article>
           <!-- /PATCH ENTRY: Changed Files Widget Behavior -->
+
+          <!-- PATCH ENTRY: macOS Thread Notifications -->
+          <article class="patch-entry panel" id="macos-thread-notifications">
+            <header class="entry-header">
+              <div class="entry-title-block">
+                <p class="eyebrow">feature patch</p>
+                <h3>macOS Thread Notifications</h3>
+              </div>
+              <p class="entry-status">Finalized and merged into custom/base</p>
+            </header>
+
+            <dl class="metadata-grid" aria-label="macOS Thread Notifications metadata">
+              <div class="metadata-item">
+                <dt>Source branch</dt>
+                <dd><code>custom/macos-notifications</code></dd>
+              </div>
+              <div class="metadata-item">
+                <dt>Finalized at</dt>
+                <dd><time datetime="2026-05-14T00:43:35+05:00">2026-05-14 00:43:35 +0500</time></dd>
+              </div>
+            </dl>
+
+            <div class="entry-sections">
+              <section class="entry-section" aria-labelledby="macos-notifications-intent-heading">
+                <h4 id="macos-notifications-intent-heading">Feature Intent</h4>
+                <p>
+                  Add opt-in desktop notifications for Electron builds when a thread needs user
+                  attention, has a plan ready, completes, or fails. Notifications are disabled by
+                  default, use short thread-title-only copy, and route users back to the notifying
+                  thread when clicked.
+                </p>
+              </section>
+
+              <section class="entry-section" aria-labelledby="macos-notifications-commits-heading">
+                <h4 id="macos-notifications-commits-heading">Commits</h4>
+                <ul class="commit-list">
+                  <li>
+                    <code>fc7efe66</code>
+                    <span>Add desktop thread notifications.</span>
+                  </li>
+                </ul>
+              </section>
+
+              <section class="entry-section" aria-labelledby="macos-notifications-notes-heading">
+                <h4 id="macos-notifications-notes-heading">Implementation Notes</h4>
+                <ul>
+                  <li>
+                    <code>desktopThreadNotificationsEnabled</code> is a client-local setting and
+                    remains off until the Electron notification preflight succeeds.
+                  </li>
+                  <li>
+                    Electron notification support lives behind <code>window.desktopBridge</code>
+                    IPC, with main-process notification creation and activation routing.
+                  </li>
+                  <li>
+                    Renderer notification derivation is centralized in
+                    <code>threadNotifications.ts</code> so sidebar state priority, duplicate
+                    suppression, and initial snapshot seeding stay testable.
+                  </li>
+                  <li>
+                    Focus suppression applies only to the active thread in a focused window;
+                    inactive threads can still notify while the app is focused.
+                  </li>
+                </ul>
+              </section>
+
+              <section class="entry-section" aria-labelledby="macos-notifications-merge-heading">
+                <h4 id="macos-notifications-merge-heading">Upstream Merge Context</h4>
+                <div class="callout">
+                  <ul>
+                    <li>
+                      Preserve the desktop bridge boundary; notification APIs should remain
+                      desktop-shell specific and should not be added to <code>LocalApi</code>.
+                    </li>
+                    <li>
+                      If upstream changes sidebar thread summaries, keep notification intent
+                      priority aligned with the visible sidebar state.
+                    </li>
+                    <li>
+                      Signed macOS builds are expected for reliable OS notification delivery, but
+                      unsigned builds must continue to fail gracefully through the preflight path.
+                    </li>
+                  </ul>
+                </div>
+              </section>
+            </div>
+          </article>
+          <!-- /PATCH ENTRY: macOS Thread Notifications -->
         </div>
       </section>
     </main>
