@@ -1,0 +1,427 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Custom Patch Record</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --background: #f4f1ea;
+        --paper: #fffdf8;
+        --ink: #1f2933;
+        --muted: #697586;
+        --border: #d8d1c3;
+        --accent: #2f6f73;
+        --accent-soft: #e3f0ee;
+        --warning-soft: #fff4d8;
+        --code: #263238;
+        --shadow: 0 18px 45px rgb(55 48 38 / 12%);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background:
+          linear-gradient(135deg, rgb(47 111 115 / 8%), transparent 34rem), var(--background);
+        color: var(--ink);
+        font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+        line-height: 1.55;
+      }
+
+      main {
+        width: min(100% - 32px, 1100px);
+        margin: 0 auto;
+        padding: 32px 0 64px;
+      }
+
+      h2,
+      h3 {
+        line-height: 1.12;
+        margin: 0;
+      }
+
+      h2 {
+        font-size: 1.5rem;
+      }
+
+      h3 {
+        font-size: 1.25rem;
+      }
+
+      p {
+        margin: 0;
+      }
+
+      code {
+        border: 1px solid rgb(31 41 51 / 12%);
+        border-radius: 5px;
+        background: rgb(255 255 255 / 70%);
+        color: var(--code);
+        font-family:
+          ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+        font-size: 0.93em;
+        padding: 0.08rem 0.32rem;
+      }
+
+      ul {
+        margin: 0;
+        padding-left: 1.25rem;
+      }
+
+      li + li {
+        margin-top: 0.35rem;
+      }
+
+      .eyebrow {
+        color: var(--accent);
+        font-family:
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.16em;
+        margin-bottom: 12px;
+        text-transform: uppercase;
+      }
+
+      .panel {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: rgb(255 253 248 / 88%);
+        box-shadow: var(--shadow);
+      }
+
+      .patch-entry {
+        margin-top: 20px;
+        padding: 24px;
+      }
+
+      .section-heading {
+        align-items: end;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        gap: 16px;
+        justify-content: space-between;
+        margin: 0 0 18px;
+        padding-bottom: 12px;
+      }
+
+      .section-heading p {
+        color: var(--muted);
+        font-family:
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+        font-size: 0.92rem;
+      }
+
+      .metadata-grid {
+        display: grid;
+        gap: 12px;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      }
+
+      .metadata-item {
+        border-left: 3px solid var(--accent);
+        padding-left: 12px;
+      }
+
+      .metadata-item dt {
+        color: var(--muted);
+        font-family:
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+        font-size: 0.74rem;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        margin-bottom: 2px;
+        text-transform: uppercase;
+      }
+
+      .metadata-item dd {
+        margin: 0;
+      }
+
+      .entries {
+        display: grid;
+        gap: 24px;
+      }
+
+      .patch-entry {
+        background: var(--paper);
+      }
+
+      .entry-header {
+        display: grid;
+        gap: 18px;
+        grid-template-columns: 1fr;
+        margin-bottom: 22px;
+      }
+
+      .entry-title-block {
+        display: grid;
+        gap: 8px;
+      }
+
+      .entry-status {
+        align-self: start;
+        border: 1px solid rgb(47 111 115 / 28%);
+        border-radius: 999px;
+        background: var(--accent-soft);
+        color: #22575a;
+        display: inline-flex;
+        font-family:
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+        font-size: 0.78rem;
+        font-weight: 700;
+        padding: 0.28rem 0.7rem;
+      }
+
+      .entry-sections {
+        display: grid;
+        gap: 18px;
+      }
+
+      .entry-section {
+        border-top: 1px solid var(--border);
+        display: grid;
+        gap: 10px;
+        padding-top: 16px;
+      }
+
+      .entry-section h4 {
+        color: var(--accent);
+        font-family:
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+        font-size: 0.8rem;
+        letter-spacing: 0.12em;
+        margin: 0;
+        text-transform: uppercase;
+      }
+
+      .commit-list {
+        list-style: none;
+        padding-left: 0;
+      }
+
+      .commit-list li {
+        align-items: baseline;
+        display: grid;
+        gap: 8px;
+        grid-template-columns: auto 1fr;
+      }
+
+      .callout {
+        border: 1px solid #ead49a;
+        border-radius: 8px;
+        background: var(--warning-soft);
+        padding: 16px 18px;
+      }
+
+      @media (min-width: 760px) {
+        .entry-header {
+          align-items: start;
+          grid-template-columns: 1fr auto;
+        }
+      }
+
+      @media print {
+        body {
+          background: #fff;
+        }
+
+        main {
+          width: 100%;
+          padding: 0;
+        }
+
+        .panel {
+          box-shadow: none;
+          break-inside: avoid;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section aria-labelledby="feature-entries-heading">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">append-only log</p>
+            <h2 id="feature-entries-heading">Feature Entries</h2>
+          </div>
+          <p>Newest entries should be appended below existing entries.</p>
+        </div>
+
+        <div class="entries">
+          <!-- PATCH ENTRY: Changed Files Widget Behavior -->
+          <article class="patch-entry panel" id="changed-files-widget-behavior">
+            <header class="entry-header">
+              <div class="entry-title-block">
+                <p class="eyebrow">feature patch</p>
+                <h3>Changed Files Widget Behavior</h3>
+              </div>
+              <p class="entry-status">Finalized and merged into custom/base</p>
+            </header>
+
+            <dl class="metadata-grid" aria-label="Changed Files Widget Behavior metadata">
+              <div class="metadata-item">
+                <dt>Source branch</dt>
+                <dd><code>custom/changed-files-widget-behavior</code></dd>
+              </div>
+              <div class="metadata-item">
+                <dt>Finalized at</dt>
+                <dd><time datetime="2026-05-13T20:49:53+05:00">2026-05-13 20:49:53 +0500</time></dd>
+              </div>
+            </dl>
+
+            <div class="entry-sections">
+              <section class="entry-section" aria-labelledby="changed-files-intent-heading">
+                <h4 id="changed-files-intent-heading">Feature Intent</h4>
+                <p>
+                  Hide the active-turn Changed files timeline card while an agent turn is still in
+                  progress. The card should appear only after that turn settles and changed files
+                  are present, while Changed files cards for older completed turns remain visible.
+                </p>
+              </section>
+
+              <section class="entry-section" aria-labelledby="changed-files-commits-heading">
+                <h4 id="changed-files-commits-heading">Commits</h4>
+                <ul class="commit-list">
+                  <li>
+                    <code>fd22bdd3</code>
+                    <span>Hide active turn changed files widget.</span>
+                  </li>
+                  <li>
+                    <code>d341c894</code>
+                    <span>Merge changed files widget behavior into custom.</span>
+                  </li>
+                </ul>
+              </section>
+
+              <section class="entry-section" aria-labelledby="changed-files-notes-heading">
+                <h4 id="changed-files-notes-heading">Implementation Notes</h4>
+                <ul>
+                  <li>Gating happens in timeline row derivation.</li>
+                  <li>
+                    Do not move the behavior into diff fetching, checkpoint storage, git status
+                    polling, or the Changed files tree renderer.
+                  </li>
+                  <li>
+                    <code>MessagesTimeline.logic.ts</code> suppresses
+                    <code>assistantTurnDiffSummary</code> only for the active assistant turn when
+                    <code>activeTurnInProgress</code> is true.
+                  </li>
+                  <li>
+                    Logic tests cover hiding active in-progress summaries, preserving older
+                    completed summaries, and showing the active turn summary after settlement.
+                  </li>
+                </ul>
+              </section>
+
+              <section class="entry-section" aria-labelledby="changed-files-merge-heading">
+                <h4 id="changed-files-merge-heading">Upstream Merge Context</h4>
+                <div class="callout">
+                  <ul>
+                    <li>
+                      Preserve the timeline row-derivation gate when resolving upstream conflicts
+                      around <code>MessagesTimeline.logic.ts</code>.
+                    </li>
+                    <li>
+                      If upstream changes the Changed files UI, keep this product behavior: no
+                      active-turn Changed files card while an agent turn is ongoing; completed-turn
+                      cards remain visible.
+                    </li>
+                  </ul>
+                </div>
+              </section>
+            </div>
+          </article>
+          <!-- /PATCH ENTRY: Changed Files Widget Behavior -->
+        </div>
+      </section>
+    </main>
+
+    <!--
+      COPY THIS TEMPLATE FOR THE NEXT CUSTOM FEATURE AFTER MERGING INTO custom/base.
+      Replace every "feature-slug" id fragment before committing the new entry.
+      Add PATCH ENTRY boundary comments around the copied article, matching the live entries above.
+
+      <article class="patch-entry panel" id="kebab-case-feature-name">
+        <header class="entry-header">
+          <div class="entry-title-block">
+            <p class="eyebrow">feature patch</p>
+            <h3>Human Readable Feature Name</h3>
+          </div>
+          <p class="entry-status">Finalized and merged into custom/base</p>
+        </header>
+
+        <dl class="metadata-grid" aria-label="Human Readable Feature Name metadata">
+          <div class="metadata-item">
+            <dt>Source branch</dt>
+            <dd><code>custom/example-feature-branch</code></dd>
+          </div>
+          <div class="metadata-item">
+            <dt>Finalized at</dt>
+            <dd><time datetime="YYYY-MM-DDTHH:MM:SS+00:00">YYYY-MM-DD HH:MM:SS +0000</time></dd>
+          </div>
+        </dl>
+
+        <div class="entry-sections">
+          <section class="entry-section" aria-labelledby="feature-intent-heading">
+            <h4 id="feature-intent-heading">Feature Intent</h4>
+            <p>Describe the product intent and user-visible behavior.</p>
+          </section>
+
+          <section class="entry-section" aria-labelledby="feature-commits-heading">
+            <h4 id="feature-commits-heading">Commits</h4>
+            <ul class="commit-list">
+              <li><code>commit</code><span>Commit subject.</span></li>
+            </ul>
+          </section>
+
+          <section class="entry-section" aria-labelledby="feature-notes-heading">
+            <h4 id="feature-notes-heading">Implementation Notes</h4>
+            <ul>
+              <li>Record implementation choices that matter during future conflict resolution.</li>
+            </ul>
+          </section>
+
+          <section class="entry-section" aria-labelledby="feature-merge-heading">
+            <h4 id="feature-merge-heading">Upstream Merge Context</h4>
+            <div class="callout">
+              <ul>
+                <li>Record what behavior must be preserved if upstream touches the same files.</li>
+              </ul>
+            </div>
+          </section>
+        </div>
+      </article>
+    -->
+  </body>
+</html>
