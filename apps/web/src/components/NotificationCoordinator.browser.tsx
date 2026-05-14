@@ -5,6 +5,7 @@ import {
   ProjectId,
   ProviderDriverKind,
   type DesktopBridge,
+  type DesktopNotificationActivation,
   type ThreadId,
   TurnId,
 } from "@t3tools/contracts";
@@ -162,7 +163,8 @@ function updateBootstrapComplete(bootstrapComplete: boolean) {
 }
 
 function installDesktopBridge() {
-  const showNotification = vi.fn().mockResolvedValue({ shown: true, reason: "shown" });
+  let activationListener: ((activation: DesktopNotificationActivation) => void) | null = null;
+  const showNotification = vi.fn().mockResolvedValue({ status: "shown", reason: "shown" });
   const bridge = {
     getClientSettings: vi.fn().mockImplementation(async () => ({
       desktopThreadNotificationsEnabled: settingsHarness.desktopThreadNotificationsEnabled,
@@ -171,7 +173,12 @@ function installDesktopBridge() {
     getLocalEnvironmentBootstrap: () => null,
     getNotificationSupport: vi.fn().mockResolvedValue({ supported: true, platform: "darwin" }),
     showNotification,
-    onNotificationActivated: vi.fn(() => () => undefined),
+    onNotificationActivated: vi.fn((listener) => {
+      activationListener = listener;
+      return () => {
+        activationListener = null;
+      };
+    }),
   } as unknown as DesktopBridge;
 
   Object.defineProperty(window, "desktopBridge", {
@@ -179,33 +186,41 @@ function installDesktopBridge() {
     value: bridge,
   });
 
-  return { bridge, showNotification };
+  return {
+    bridge,
+    showNotification,
+    activate: (activation: DesktopNotificationActivation) => activationListener?.(activation),
+  };
 }
 
 async function renderCoordinator(activeRouteThreadId: ThreadId = threadId) {
-  const { ThreadNotificationCoordinator } = await import("./ThreadNotificationCoordinator");
+  const { NotificationCoordinator } = await import("./NotificationCoordinator");
   const rootRoute = createRootRoute({
-    component: () => <ThreadNotificationCoordinator />,
+    component: () => <NotificationCoordinator />,
   });
   const threadRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: "/$environmentId/$threadId",
   });
+  const history = createMemoryHistory({
+    initialEntries: [`/${environmentId}/${activeRouteThreadId}`],
+  });
   const router = createRouter({
     routeTree: rootRoute.addChildren([threadRoute]),
-    history: createMemoryHistory({
-      initialEntries: [`/${environmentId}/${activeRouteThreadId}`],
-    }),
+    history,
   });
 
-  return render(<RouterProvider router={router} />);
+  return {
+    history,
+    mounted: await render(<RouterProvider router={router} />),
+  };
 }
 
 async function waitForEffects() {
   await new Promise((resolve) => setTimeout(resolve, 50));
 }
 
-describe("ThreadNotificationCoordinator", () => {
+describe("NotificationCoordinator", () => {
   beforeEach(() => {
     settingsHarness.desktopThreadNotificationsEnabled = false;
     seedStore(summary());
@@ -224,9 +239,9 @@ describe("ThreadNotificationCoordinator", () => {
     vi.restoreAllMocks();
   });
 
-  it("renders without a maximum update depth loop with sidebar thread summaries", async () => {
+  it("does not notify when settings are disabled", async () => {
     const { showNotification } = installDesktopBridge();
-    const mounted = await renderCoordinator();
+    const { mounted } = await renderCoordinator();
 
     try {
       await waitForEffects();
@@ -236,7 +251,7 @@ describe("ThreadNotificationCoordinator", () => {
     }
   });
 
-  it("does not notify on initial snapshot when enabled", async () => {
+  it("does not notify on initial bootstrap snapshot when enabled", async () => {
     settingsHarness.desktopThreadNotificationsEnabled = true;
     seedStore(
       summary({
@@ -245,7 +260,7 @@ describe("ThreadNotificationCoordinator", () => {
       }),
     );
     const { showNotification } = installDesktopBridge();
-    const mounted = await renderCoordinator();
+    const { mounted } = await renderCoordinator();
 
     try {
       await waitForEffects();
@@ -265,7 +280,7 @@ describe("ThreadNotificationCoordinator", () => {
       { bootstrapComplete: false },
     );
     const { showNotification } = installDesktopBridge();
-    const mounted = await renderCoordinator("active-thread" as ThreadId);
+    const { mounted } = await renderCoordinator("active-thread" as ThreadId);
 
     try {
       await waitForEffects();
@@ -279,10 +294,10 @@ describe("ThreadNotificationCoordinator", () => {
     }
   });
 
-  it("notifies on a later sidebar state transition after the initial snapshot", async () => {
+  it("notifies on a later inactive thread state transition", async () => {
     settingsHarness.desktopThreadNotificationsEnabled = true;
     const { showNotification } = installDesktopBridge();
-    const mounted = await renderCoordinator("active-thread" as ThreadId);
+    const { mounted } = await renderCoordinator("active-thread" as ThreadId);
 
     try {
       await waitForEffects();
@@ -301,15 +316,42 @@ describe("ThreadNotificationCoordinator", () => {
       });
       expect(showNotification).toHaveBeenCalledWith(
         expect.objectContaining({
-          kind: "thread.awaiting-input",
+          topic: "thread.activity",
+          severity: "warning",
           title: "Input needed",
           body: "Notification regression",
           route: {
+            kind: "thread",
             environmentId,
             threadId,
           },
         }),
       );
+    } finally {
+      await mounted.unmount();
+    }
+  });
+
+  it("routes thread notification activations", async () => {
+    settingsHarness.desktopThreadNotificationsEnabled = true;
+    const { activate } = installDesktopBridge();
+    const { history, mounted } = await renderCoordinator("active-thread" as ThreadId);
+
+    try {
+      activate({
+        notificationId: "notification-1",
+        topic: "thread.activity",
+        createdAt: "2026-05-14T10:00:00.000Z",
+        route: {
+          kind: "thread",
+          environmentId,
+          threadId,
+        },
+      });
+
+      await vi.waitFor(() => {
+        expect(history.location.pathname).toBe(`/${environmentId}/${threadId}`);
+      });
     } finally {
       await mounted.unmount();
     }

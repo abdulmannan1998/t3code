@@ -554,18 +554,21 @@ export function GeneralSettingsPanel() {
             return null;
           }
 
+          const notificationId = `permission-test:${Date.now()}`;
           return bridge.showNotification({
-            id: `permission-test:${Date.now()}`,
-            kind: "permission-test",
+            notificationId,
+            dedupeKey: notificationId,
+            topic: "permission-test",
+            severity: "info",
             title: "T3 Code notifications enabled",
-            body: "You'll be notified when threads need attention or finish.",
+            body: "Thread updates will appear here.",
           });
         })
         .then((result) => {
           if (result === null) {
             return;
           }
-          if (result.shown) {
+          if (result.status === "shown" || result.status === "suppressed") {
             updateSettings({ desktopThreadNotificationsEnabled: true });
             return;
           }

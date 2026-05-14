@@ -2,8 +2,8 @@ import {
   ContextMenuItemSchema,
   DesktopAppBrandingSchema,
   DesktopEnvironmentBootstrapSchema,
-  DesktopNotificationInputSchema,
-  DesktopNotificationShowResultSchema,
+  DesktopNotificationRequestSchema,
+  DesktopNotificationResultSchema,
   DesktopNotificationSupportSchema,
   DesktopThemeSchema,
   PickFolderOptionsSchema,
@@ -16,10 +16,10 @@ import * as DesktopBackendManager from "../../backend/DesktopBackendManager.ts";
 import * as DesktopEnvironment from "../../app/DesktopEnvironment.ts";
 import * as ElectronDialog from "../../electron/ElectronDialog.ts";
 import * as ElectronMenu from "../../electron/ElectronMenu.ts";
-import * as ElectronNotifications from "../../electron/ElectronNotifications.ts";
 import * as ElectronShell from "../../electron/ElectronShell.ts";
 import * as ElectronTheme from "../../electron/ElectronTheme.ts";
 import * as ElectronWindow from "../../electron/ElectronWindow.ts";
+import * as DesktopNotificationService from "../../notifications/DesktopNotificationService.ts";
 import * as IpcChannels from "../channels.ts";
 import { makeIpcMethod, makeSyncIpcMethod } from "../DesktopIpc.ts";
 
@@ -143,17 +143,17 @@ export const getNotificationSupport = makeIpcMethod({
   payload: Schema.Void,
   result: DesktopNotificationSupportSchema,
   handler: Effect.fn("desktop.ipc.window.getNotificationSupport")(function* () {
-    const notifications = yield* ElectronNotifications.ElectronNotifications;
+    const notifications = yield* DesktopNotificationService.DesktopNotificationService;
     return yield* notifications.getSupport;
   }),
 });
 
 export const showNotification = makeIpcMethod({
   channel: IpcChannels.NOTIFICATION_SHOW_CHANNEL,
-  payload: DesktopNotificationInputSchema,
-  result: DesktopNotificationShowResultSchema,
+  payload: DesktopNotificationRequestSchema,
+  result: DesktopNotificationResultSchema,
   handler: Effect.fn("desktop.ipc.window.showNotification")(function* (input) {
-    const notifications = yield* ElectronNotifications.ElectronNotifications;
+    const notifications = yield* DesktopNotificationService.DesktopNotificationService;
     return yield* notifications.show(input);
   }),
 });

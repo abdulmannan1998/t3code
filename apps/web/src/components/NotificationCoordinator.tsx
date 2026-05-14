@@ -3,11 +3,15 @@ import { scopeThreadRef } from "@t3tools/client-runtime";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
-import { type AppState, selectSidebarThreadsAcrossEnvironments, useStore } from "../store";
-import { buildThreadRouteParams, resolveThreadRouteTarget } from "../threadRoutes";
-import { createThreadNotificationTracker } from "../threadNotifications";
-import { useSettings } from "../hooks/useSettings";
+
 import { isElectron } from "../env";
+import { useSettings } from "../hooks/useSettings";
+import {
+  createThreadActivityNotificationTracker,
+  type ThreadActivityNotificationIntent,
+} from "../notifications/threadActivityNotifications";
+import { type AppState, selectSidebarThreadsAcrossEnvironments, useStore } from "../store";
+import { resolveThreadRouteTarget } from "../threadRoutes";
 
 function readDocumentFocused(): boolean {
   if (typeof document === "undefined") {
@@ -22,7 +26,15 @@ function selectBootstrappedEnvironmentIds(state: AppState): EnvironmentId[] {
   );
 }
 
-export function ThreadNotificationCoordinator() {
+function failedNotificationResult(message: string) {
+  return {
+    status: "failed",
+    reason: "failed",
+    message,
+  } as const;
+}
+
+export function NotificationCoordinator() {
   const navigate = useNavigate();
   const routeTarget = useParams({
     strict: false,
@@ -41,7 +53,7 @@ export function ThreadNotificationCoordinator() {
   const enabled = useSettings((settings) => settings.desktopThreadNotificationsEnabled);
   const threads = useStore(useShallow(selectSidebarThreadsAcrossEnvironments));
   const bootstrappedEnvironmentIds = useStore(useShallow(selectBootstrappedEnvironmentIds));
-  const tracker = useMemo(() => createThreadNotificationTracker(), []);
+  const tracker = useMemo(() => createThreadActivityNotificationTracker(), []);
   const [windowFocused, setWindowFocused] = useState(readDocumentFocused);
 
   useEffect(() => {
@@ -72,30 +84,31 @@ export function ThreadNotificationCoordinator() {
       windowFocused,
     });
 
+    const recordFailure = (intent: ThreadActivityNotificationIntent, error: unknown) => {
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn("[NOTIFICATIONS] show failed", {
+        notificationId: intent.request.notificationId,
+        error: message,
+      });
+      tracker.recordDelivery(intent, failedNotificationResult(message));
+    };
+
     for (const intent of intents) {
       void bridge
-        .showNotification({
-          id: intent.key,
-          kind: intent.kind,
-          title: intent.title,
-          body: intent.body,
-          groupId: intent.groupId,
-          route: buildThreadRouteParams(intent.threadRef),
-        })
+        .showNotification(intent.request)
         .then((result) => {
-          if (!result.shown) {
-            console.warn("[THREAD_NOTIFICATIONS] show failed", {
-              key: intent.key,
+          if (result.status === "failed" || result.status === "unsupported") {
+            console.warn("[NOTIFICATIONS] show failed", {
+              notificationId: intent.request.notificationId,
+              status: result.status,
               reason: result.reason,
               message: result.message,
             });
           }
+          tracker.recordDelivery(intent, result);
         })
         .catch((error: unknown) => {
-          console.warn("[THREAD_NOTIFICATIONS] show failed", {
-            key: intent.key,
-            error: error instanceof Error ? error.message : String(error),
-          });
+          recordFailure(intent, error);
         });
     }
   }, [activeThreadRef, bootstrappedEnvironmentIds, enabled, threads, tracker, windowFocused]);
@@ -107,12 +120,15 @@ export function ThreadNotificationCoordinator() {
     }
 
     return bridge.onNotificationActivated((activation) => {
-      if (!activation.route) {
+      if (!activation.route || activation.route.kind !== "thread") {
         return;
       }
       void navigate({
         to: "/$environmentId/$threadId",
-        params: activation.route,
+        params: {
+          environmentId: activation.route.environmentId,
+          threadId: activation.route.threadId,
+        },
       });
     });
   }, [navigate]);

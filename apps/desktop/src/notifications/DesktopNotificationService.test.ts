@@ -1,13 +1,14 @@
 import { assert, describe, it } from "@effect/vitest";
 import type {
   DesktopNotificationActivation,
-  DesktopNotificationInput,
-  DesktopNotificationShowResult,
+  DesktopNotificationRequest,
+  DesktopNotificationResult,
 } from "@t3tools/contracts";
 import { EnvironmentId, ThreadId } from "@t3tools/contracts";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
+import * as TestClock from "effect/testing/TestClock";
 import type * as Electron from "electron";
 import { beforeEach, vi } from "vitest";
 
@@ -75,19 +76,22 @@ vi.mock("electron", () => ({
 }));
 
 import * as IpcChannels from "../ipc/channels.ts";
-import * as ElectronNotifications from "./ElectronNotifications.ts";
-import * as ElectronWindow from "./ElectronWindow.ts";
+import * as ElectronWindow from "../electron/ElectronWindow.ts";
+import * as DesktopNotificationService from "./DesktopNotificationService.ts";
 
-function notificationInput(
-  overrides: Partial<DesktopNotificationInput> = {},
-): DesktopNotificationInput {
+function notificationRequest(
+  overrides: Partial<DesktopNotificationRequest> = {},
+): DesktopNotificationRequest {
   return {
-    id: "environment-local:thread-1:completed:turn-1:2026-05-14T00:00:00.000Z",
-    kind: "thread.completed",
-    title: "Thread completed",
+    notificationId: "environment-local:thread-1:completed:turn-1",
+    dedupeKey: "environment-local:thread-1:completed:turn-1",
+    topic: "thread.activity",
+    severity: "success",
+    title: "Thread finished",
     body: "Implement notifications",
-    groupId: "environment-local:thread-1",
+    groupKey: "environment-local:thread-1",
     route: {
+      kind: "thread",
       environmentId: EnvironmentId.make("environment-local"),
       threadId: ThreadId.make("thread-1"),
     },
@@ -128,10 +132,13 @@ function makeLayer(input: {
 }
 
 function notificationLayer(input: Parameters<typeof makeLayer>[0]) {
-  return ElectronNotifications.layer.pipe(Layer.provideMerge(makeLayer(input)));
+  return DesktopNotificationService.layer.pipe(
+    Layer.provideMerge(makeLayer(input)),
+    Layer.provideMerge(TestClock.layer()),
+  );
 }
 
-describe("ElectronNotifications", () => {
+describe("DesktopNotificationService", () => {
   beforeEach(() => {
     isSupportedMock.mockReset();
     isSupportedMock.mockReturnValue(true);
@@ -141,56 +148,63 @@ describe("ElectronNotifications", () => {
   it.effect("returns unsupported when notifications are unavailable", () =>
     Effect.gen(function* () {
       isSupportedMock.mockReturnValue(false);
-      const notifications = yield* ElectronNotifications.ElectronNotifications;
+      const notifications = yield* DesktopNotificationService.DesktopNotificationService;
 
       const support = yield* notifications.getSupport;
-      const result = yield* notifications.show(notificationInput());
+      const result = yield* notifications.show(notificationRequest());
 
       assert.deepEqual(support.supported, false);
-      assert.deepEqual(result, { shown: false, reason: "unsupported" });
+      assert.deepEqual(result, { status: "unsupported", reason: "unsupported" });
       assert.equal(notificationInstances.length, 0);
     }).pipe(Effect.provide(notificationLayer({}))),
   );
 
-  it.effect("shows supported notifications with id, body, and group id", () =>
+  it.effect("shows supported notifications with id, body, and group key", () =>
     Effect.gen(function* () {
-      const notifications = yield* ElectronNotifications.ElectronNotifications;
-      const result = yield* notifications.show(notificationInput());
+      const notifications = yield* DesktopNotificationService.DesktopNotificationService;
+      const result = yield* notifications.show(notificationRequest());
       const [instance] = notificationInstances;
 
-      assert.deepEqual(result, { shown: true, reason: "shown" });
+      assert.deepEqual(result, { status: "shown", reason: "shown" });
       assert.deepEqual(instance?.options, {
-        id: "environment-local:thread-1:completed:turn-1:2026-05-14T00:00:00.000Z",
-        title: "Thread completed",
+        id: "environment-local:thread-1:completed:turn-1",
+        title: "Thread finished",
         body: "Implement notifications",
         groupId: "environment-local:thread-1",
       });
     }).pipe(Effect.provide(notificationLayer({}))),
   );
 
-  it.effect("suppresses duplicate notifications with the same live id", () =>
+  it.effect("suppresses duplicate dedupe keys within the ttl window", () =>
     Effect.gen(function* () {
-      const notifications = yield* ElectronNotifications.ElectronNotifications;
-      const input = notificationInput();
+      const notifications = yield* DesktopNotificationService.DesktopNotificationService;
+      const request = notificationRequest({ ttlMs: 10 });
 
-      const first = yield* notifications.show(input);
-      const second = yield* notifications.show(input);
+      const first = yield* notifications.show(request);
+      notificationInstances[0]?.emit("close");
+      const second = yield* notifications.show({
+        ...request,
+        notificationId: "environment-local:thread-1:completed:turn-1:retry",
+      });
 
-      assert.deepEqual(first, { shown: true, reason: "shown" });
-      assert.deepEqual(second, { shown: true, reason: "shown" });
+      assert.deepEqual(first, { status: "shown", reason: "shown" });
+      assert.deepEqual(second, { status: "suppressed", reason: "duplicate" });
       assert.equal(notificationInstances.length, 1);
-      assert.equal(notificationInstances[0]?.show.mock.calls.length, 1);
     }).pipe(Effect.provide(notificationLayer({}))),
   );
 
-  it.effect("allows the same notification id again after the live notification closes", () =>
+  it.effect("allows the same dedupe key again after the ttl window", () =>
     Effect.gen(function* () {
-      const notifications = yield* ElectronNotifications.ElectronNotifications;
-      const input = notificationInput();
+      const notifications = yield* DesktopNotificationService.DesktopNotificationService;
+      const request = notificationRequest({ ttlMs: 10 });
 
-      yield* notifications.show(input);
+      yield* notifications.show(request);
       notificationInstances[0]?.emit("close");
-      yield* notifications.show(input);
+      yield* TestClock.adjust("11 millis");
+      yield* notifications.show({
+        ...request,
+        notificationId: "environment-local:thread-1:completed:turn-1:after-ttl",
+      });
 
       assert.equal(notificationInstances.length, 2);
     }).pipe(Effect.provide(notificationLayer({}))),
@@ -202,18 +216,20 @@ describe("ElectronNotifications", () => {
     const revealed: Electron.BrowserWindow[] = [];
 
     return Effect.gen(function* () {
-      const notifications = yield* ElectronNotifications.ElectronNotifications;
+      const notifications = yield* DesktopNotificationService.DesktopNotificationService;
 
-      yield* notifications.show(notificationInput());
+      yield* notifications.show(notificationRequest());
       notificationInstances[0]?.emit("click");
-      yield* Effect.sleep("0 millis");
+      yield* Effect.promise(() => Promise.resolve());
 
       assert.deepEqual(revealed, [mainWindow]);
       assert.deepEqual(activations, [
         {
-          id: "environment-local:thread-1:completed:turn-1:2026-05-14T00:00:00.000Z",
-          kind: "thread.completed",
+          notificationId: "environment-local:thread-1:completed:turn-1",
+          topic: "thread.activity",
+          createdAt: "1970-01-01T00:00:00.000Z",
           route: {
+            kind: "thread",
             environmentId: EnvironmentId.make("environment-local"),
             threadId: ThreadId.make("thread-1"),
           },
@@ -225,14 +241,32 @@ describe("ElectronNotifications", () => {
 
   it.effect("returns failed results when notification display fails", () =>
     Effect.gen(function* () {
-      const notifications = yield* ElectronNotifications.ElectronNotifications;
-      const result = yield* notifications.show(notificationInput({ title: "Fail" }));
+      const notifications = yield* DesktopNotificationService.DesktopNotificationService;
+      const result = yield* notifications.show(notificationRequest({ title: "Fail" }));
 
       assert.deepEqual(result, {
-        shown: false,
+        status: "failed",
         reason: "failed",
         message: "permission denied",
-      } satisfies DesktopNotificationShowResult);
+      } satisfies DesktopNotificationResult);
+    }).pipe(Effect.provide(notificationLayer({}))),
+  );
+
+  it.effect("evicts the oldest live notification when the live cap is exceeded", () =>
+    Effect.gen(function* () {
+      const notifications = yield* DesktopNotificationService.DesktopNotificationService;
+
+      for (let index = 0; index < 101; index += 1) {
+        yield* notifications.show(
+          notificationRequest({
+            notificationId: `notification-${index}`,
+            dedupeKey: `notification-${index}`,
+          }),
+        );
+      }
+
+      assert.equal(notificationInstances.length, 101);
+      assert.equal(notificationInstances[0]?.close.mock.calls.length, 1);
     }).pipe(Effect.provide(notificationLayer({}))),
   );
 });
