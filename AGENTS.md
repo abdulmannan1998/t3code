@@ -25,12 +25,12 @@ Long term maintainability is a core priority. If you add new functionality, firs
 
 ## Branch and Patch Workflow
 
-- Branches created from `main` must use the `main/*` naming pattern.
-- Branches created from `custom` must use the `custom/*` naming pattern.
+- Branches created from `main` must use the `feature-main/*` naming pattern.
+- Branches created from `custom` must use the `feature-custom/*` naming pattern.
 - `PATCH.html` is the cumulative patch record for every custom feature branch merged into `custom/base`.
 - Each custom feature entry in `PATCH.html` must include the source feature branch, status, feature intent, relevant commits, implementation notes, upstream merge/conflict context, and the finalization timestamp for that branch.
-- Do not update `PATCH.html` while working on a `custom/*` feature branch.
-- Update `PATCH.html` only after the `custom/*` feature branch has been merged into `custom/base`, and make that edit directly on `custom/base` so the custom base branch contains the full patch record.
+- Do not update `PATCH.html` while working on a `feature-custom/*` feature branch.
+- Update `PATCH.html` only after the `feature-custom/*` feature branch has been merged into `custom/base`, and make that edit directly on `custom/base` so the custom base branch contains the full patch record.
 
 ## Package Roles
 
