@@ -377,35 +377,19 @@
             <dl class="metadata-grid" aria-label="macOS Thread Notifications metadata">
               <div class="metadata-item">
                 <dt>Source branch</dt>
-                <dd><code>custom/macos-notifications</code></dd>
+                <dd><code>feature-custom/new-notifications</code></dd>
               </div>
               <div class="metadata-item">
                 <dt>Finalized at</dt>
-                <dd><time datetime="2026-05-14T00:43:35+05:00">2026-05-14 00:43:35 +0500</time></dd>
+                <dd><time datetime="2026-05-14T19:47:32+05:00">2026-05-14 19:47:32 +0500</time></dd>
               </div>
               <div class="metadata-item">
-                <dt>Follow-up fix branch</dt>
-                <dd><code>custom/fix-react-185-notifications</code></dd>
+                <dt>Status</dt>
+                <dd>Rebuilt notification pipeline merged into <code>custom/base</code></dd>
               </div>
               <div class="metadata-item">
-                <dt>Follow-up finalized at</dt>
-                <dd><time datetime="2026-05-14T01:34:51+05:00">2026-05-14 01:34:51 +0500</time></dd>
-              </div>
-              <div class="metadata-item">
-                <dt>Duplicate/startup fix branch</dt>
-                <dd><code>custom/fix-duplicate-thread-notifications</code></dd>
-              </div>
-              <div class="metadata-item">
-                <dt>Duplicate/startup fix finalized at</dt>
-                <dd><time datetime="2026-05-14T01:55:08+05:00">2026-05-14 01:55:08 +0500</time></dd>
-              </div>
-              <div class="metadata-item">
-                <dt>Projection-update dedupe fix</dt>
-                <dd><code>custom/base</code> direct follow-up</dd>
-              </div>
-              <div class="metadata-item">
-                <dt>Projection-update dedupe finalized at</dt>
-                <dd><time datetime="2026-05-14T02:07:43+05:00">2026-05-14 02:07:43 +0500</time></dd>
+                <dt>Merge commit</dt>
+                <dd><code>bcb285b8</code></dd>
               </div>
             </dl>
 
@@ -413,10 +397,11 @@
               <section class="entry-section" aria-labelledby="macos-notifications-intent-heading">
                 <h4 id="macos-notifications-intent-heading">Feature Intent</h4>
                 <p>
-                  Add opt-in desktop notifications for Electron builds when a thread needs user
-                  attention, has a plan ready, completes, or fails. Notifications are disabled by
-                  default, use short thread-title-only copy, and route users back to the notifying
-                  thread when clicked.
+                  Replace the earlier thread-specific notification implementation with a generic
+                  Electron desktop notification abstraction. The first consumer remains opt-in
+                  inactive-thread updates, but notification delivery, dedupe, activation routing,
+                  and OS-level lifecycle handling now live behind reusable desktop contracts and a
+                  main-process service.
                 </p>
               </section>
 
@@ -424,24 +409,15 @@
                 <h4 id="macos-notifications-commits-heading">Commits</h4>
                 <ul class="commit-list">
                   <li>
-                    <code>fc7efe66</code>
-                    <span>Add desktop thread notifications.</span>
+                    <code>4074465f</code>
+                    <span>Redesign the desktop thread notification pipeline.</span>
                   </li>
                   <li>
-                    <code>bedb76ea</code>
-                    <span>Fix React maximum update depth crash in thread notifications.</span>
-                  </li>
-                  <li>
-                    <code>cee423a5</code>
-                    <span>Suppress duplicate live Electron notifications.</span>
-                  </li>
-                  <li>
-                    <code>7acb13b9</code>
-                    <span>Seed thread notifications after sidebar bootstrap.</span>
-                  </li>
-                  <li>
-                    <code>a88eae38</code>
-                    <span>Prevent duplicate thread notification emits on projection updates.</span>
+                    <code>bcb285b8</code>
+                    <span
+                      >Merge <code>feature-custom/new-notifications</code> into
+                      <code>custom/base</code>.</span
+                    >
                   </li>
                 </ul>
               </section>
@@ -451,51 +427,57 @@
                 <ul>
                   <li>
                     <code>desktopThreadNotificationsEnabled</code> is a client-local setting and
-                    remains off until the Electron notification preflight succeeds.
+                    remains the existing user-facing toggle. Enabling it now sends a generic
+                    permission-test notification with short confirmation copy.
                   </li>
                   <li>
-                    Electron notification support lives behind <code>window.desktopBridge</code>
-                    IPC, with main-process notification creation and activation routing.
+                    Notification IPC contracts are generic: requests carry
+                    <code>notificationId</code>, <code>dedupeKey</code>, <code>topic</code>,
+                    <code>severity</code>, copy, optional route data, and optional
+                    <code>ttlMs</code>.
                   </li>
                   <li>
-                    Renderer notification derivation is centralized in
-                    <code>threadNotifications.ts</code> so sidebar state priority, duplicate
-                    suppression, and initial snapshot seeding stay testable.
+                    Main-process delivery is centralized in
+                    <code>DesktopNotificationService</code>, which owns Electron
+                    <code>Notification</code> creation, live notification tracking, dedupe TTL,
+                    stale notification closing, max-live eviction, failed delivery reporting, and
+                    click activation routing.
                   </li>
                   <li>
-                    Focus suppression applies only to the active thread in a focused window;
-                    inactive threads can still notify while the app is focused.
+                    The old <code>ElectronNotifications</code>, <code>threadNotifications.ts</code>,
+                    and <code>ThreadNotificationCoordinator</code> implementation were removed. The
+                    new renderer coordinator is <code>NotificationCoordinator</code>.
                   </li>
                   <li>
-                    <code>ThreadNotificationCoordinator</code> must subscribe to
-                    <code>selectSidebarThreadsAcrossEnvironments</code> with
-                    <code>useShallow</code>. The selector returns a derived array, and subscribing
-                    without shallow comparison can trigger React maximum update depth failures in
-                    installed Electron builds.
+                    Thread-specific derivation now lives in
+                    <code>threadActivityNotifications.ts</code> as pure logic. It emits generic
+                    notification requests for inactive thread states only.
                   </li>
                   <li>
-                    Browser regression coverage lives in
-                    <code>ThreadNotificationCoordinator.browser.tsx</code> and verifies startup
-                    stability, initial snapshot seeding, and later notification transitions.
+                    Completion notifications require <code>isLatestTurnSettled</code>, so stale
+                    <code>latestTurn.completedAt</code> data cannot notify while the session is
+                    still running.
                   </li>
                   <li>
-                    Electron notification creation is idempotent for a live notification
-                    <code>id</code>, preventing duplicate OS notifications when shell/detail streams
-                    replay the same thread state.
+                    Focus suppression no longer consumes an occurrence. If an active focused thread
+                    is suppressed and later becomes eligible while inactive or blurred, it can still
+                    notify.
                   </li>
                   <li>
-                    Startup seeding is tracked per bootstrapped environment so restored sidebar
-                    state does not emit a notification immediately when the app launches.
+                    Initial sidebar snapshots are still seeded per bootstrapped environment so
+                    restored state does not emit desktop notifications on launch or when enabling
+                    the setting.
                   </li>
                   <li>
-                    Renderer duplicate suppression now tracks notification occurrences by thread,
-                    actionable state, and turn id so timestamp-only projection updates do not emit
-                    another desktop notification for the same pending state.
+                    Occurrence keys are semantic rather than projection timestamp based: pending
+                    states key by state and active turn, plan-ready keys by turn and source plan,
+                    and terminal states key by turn and terminal timestamp.
                   </li>
                   <li>
-                    Unit coverage verifies that a repeated actionable state with a later
-                    <code>updatedAt</code> is suppressed, while a state that clears and later
-                    returns can notify again.
+                    Browser and unit coverage now spans generic contracts, desktop service delivery,
+                    thread activity derivation, coordinator activation routing, bootstrap seeding,
+                    focused-active suppression, projection churn dedupe, and state clear/return
+                    behavior.
                   </li>
                 </ul>
               </section>
@@ -506,16 +488,17 @@
                   <ul>
                     <li>
                       Preserve the desktop bridge boundary; notification APIs should remain
-                      desktop-shell specific and should not be added to <code>LocalApi</code>.
+                      desktop-shell specific and reusable rather than thread-specific.
                     </li>
                     <li>
-                      If upstream changes sidebar thread summaries, keep notification intent
-                      priority aligned with the visible sidebar state.
+                      If upstream changes sidebar thread summaries, keep thread activity
+                      notification priority aligned with visible sidebar state: approvals, user
+                      input, plan-ready, failure, then completion.
                     </li>
                     <li>
-                      If upstream changes Zustand selectors or React external-store wiring, preserve
-                      shallow comparison for derived sidebar-thread arrays in app-level
-                      coordinators.
+                      If upstream changes session or turn projection, preserve the settled-turn
+                      requirement for completion notifications. A running session must not emit a
+                      completed notification because an older turn has <code>completedAt</code>.
                     </li>
                     <li>
                       If upstream changes environment bootstrap or sidebar hydration state, keep
@@ -523,14 +506,14 @@
                       environment rather than the first render.
                     </li>
                     <li>
-                      If upstream changes sidebar projection timestamps or notification key
-                      construction, preserve occurrence-level dedupe. A second update for the same
-                      thread, same actionable state, and same turn must not create another OS
-                      notification merely because <code>updatedAt</code> changed.
+                      If upstream changes notification request routing, keep activation payloads
+                      generic. Thread routing is one route variant, not the notification service's
+                      core model.
                     </li>
                     <li>
-                      Signed macOS builds are expected for reliable OS notification delivery, but
-                      unsigned builds must continue to fail gracefully through the preflight path.
+                      Signed macOS builds are expected for reliable OS notification delivery.
+                      Unsupported or failed delivery must continue to fail gracefully through the
+                      generic result path.
                     </li>
                   </ul>
                 </div>
