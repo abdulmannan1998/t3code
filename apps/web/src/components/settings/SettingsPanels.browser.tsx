@@ -451,7 +451,7 @@ const createDesktopBridgeStub = (overrides?: {
     openExternal: vi.fn().mockResolvedValue(true),
     onMenuAction: () => () => {},
     getNotificationSupport: vi.fn().mockResolvedValue({ supported: true, platform: "darwin" }),
-    showNotification: vi.fn().mockResolvedValue({ shown: true, reason: "shown" }),
+    showNotification: vi.fn().mockResolvedValue({ status: "shown", reason: "shown" }),
     onNotificationActivated: () => () => {},
     getUpdateState: vi.fn().mockResolvedValue(idleUpdateState),
     setUpdateChannel:

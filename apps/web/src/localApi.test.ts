@@ -227,7 +227,7 @@ function makeDesktopBridge(overrides: Partial<DesktopBridge> = {}): DesktopBridg
     openExternal: async () => true,
     onMenuAction: () => () => undefined,
     getNotificationSupport: async () => ({ supported: true, platform: "darwin" }),
-    showNotification: async () => ({ shown: true, reason: "shown" }),
+    showNotification: async () => ({ status: "shown", reason: "shown" }),
     onNotificationActivated: () => () => undefined,
     getUpdateState: async () => {
       throw new Error("getUpdateState not implemented in test");
