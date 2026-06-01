@@ -226,9 +226,6 @@ function makeDesktopBridge(overrides: Partial<DesktopBridge> = {}): DesktopBridg
     showContextMenu: async () => null,
     openExternal: async () => true,
     onMenuAction: () => () => undefined,
-    getNotificationSupport: async () => ({ supported: true, platform: "darwin" }),
-    showNotification: async () => ({ status: "shown", reason: "shown" }),
-    onNotificationActivated: () => () => undefined,
     getUpdateState: async () => {
       throw new Error("getUpdateState not implemented in test");
     },
@@ -605,7 +602,6 @@ describe("wsApi", () => {
       autoOpenPlanSidebar: false,
       confirmThreadArchive: true,
       confirmThreadDelete: false,
-      desktopThreadNotificationsEnabled: false,
       dismissedProviderUpdateNotificationKeys: [],
       diffIgnoreWhitespace: true,
       diffWordWrap: true,
@@ -669,7 +665,6 @@ describe("wsApi", () => {
       autoOpenPlanSidebar: false,
       confirmThreadArchive: true,
       confirmThreadDelete: false,
-      desktopThreadNotificationsEnabled: false,
       dismissedProviderUpdateNotificationKeys: [],
       diffIgnoreWhitespace: true,
       diffWordWrap: true,

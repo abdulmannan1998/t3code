@@ -36,12 +36,10 @@ import {
   confirm,
   getAppBranding,
   getLocalEnvironmentBootstrap,
-  getNotificationSupport,
   openExternal,
   pickFolder,
   setTheme,
   showContextMenu,
-  showNotification,
 } from "./methods/window.ts";
 
 export const installDesktopIpcHandlers = Effect.gen(function* () {
@@ -77,8 +75,6 @@ export const installDesktopIpcHandlers = Effect.gen(function* () {
   yield* ipc.handle(setTheme);
   yield* ipc.handle(showContextMenu);
   yield* ipc.handle(openExternal);
-  yield* ipc.handle(getNotificationSupport);
-  yield* ipc.handle(showNotification);
 
   yield* ipc.handle(getUpdateState);
   yield* ipc.handle(setUpdateChannel);

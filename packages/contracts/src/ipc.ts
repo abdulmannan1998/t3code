@@ -62,7 +62,7 @@ import type {
   OrchestrationSubscribeThreadInput,
   OrchestrationThreadStreamItem,
 } from "./orchestration.ts";
-import { EnvironmentId, ThreadId } from "./baseSchemas.ts";
+import { EnvironmentId } from "./baseSchemas.ts";
 import { AuthBearerBootstrapResult, AuthSessionState, AuthWebSocketTokenResult } from "./auth.ts";
 import { AdvertisedEndpoint } from "./remoteAccess.ts";
 import { EditorId } from "./editor.ts";
@@ -369,63 +369,6 @@ export const PickFolderOptionsSchema = Schema.Struct({
   initialPath: Schema.optionalKey(Schema.NullOr(Schema.String)),
 });
 
-export const DesktopNotificationTopicSchema = Schema.Literals([
-  "thread.activity",
-  "permission-test",
-]);
-export type DesktopNotificationTopic = typeof DesktopNotificationTopicSchema.Type;
-
-export const DesktopNotificationSeveritySchema = Schema.Literals([
-  "info",
-  "success",
-  "warning",
-  "error",
-]);
-export type DesktopNotificationSeverity = typeof DesktopNotificationSeveritySchema.Type;
-
-export const DesktopNotificationRouteSchema = Schema.Struct({
-  kind: Schema.Literal("thread"),
-  environmentId: EnvironmentId,
-  threadId: ThreadId,
-});
-export type DesktopNotificationRoute = typeof DesktopNotificationRouteSchema.Type;
-
-export const DesktopNotificationRequestSchema = Schema.Struct({
-  notificationId: Schema.String,
-  dedupeKey: Schema.String,
-  topic: DesktopNotificationTopicSchema,
-  severity: DesktopNotificationSeveritySchema,
-  title: Schema.String,
-  body: Schema.String,
-  subtitle: Schema.optionalKey(Schema.String),
-  groupKey: Schema.optionalKey(Schema.String),
-  silent: Schema.optionalKey(Schema.Boolean),
-  ttlMs: Schema.optionalKey(Schema.Number),
-  route: Schema.optionalKey(DesktopNotificationRouteSchema),
-});
-export type DesktopNotificationRequest = typeof DesktopNotificationRequestSchema.Type;
-
-export const DesktopNotificationResultSchema = Schema.Struct({
-  status: Schema.Literals(["shown", "suppressed", "unsupported", "failed"]),
-  reason: Schema.Literals(["shown", "duplicate", "unsupported", "failed"]),
-  message: Schema.optionalKey(Schema.String),
-});
-export type DesktopNotificationResult = typeof DesktopNotificationResultSchema.Type;
-
-export const DesktopNotificationActivationSchema = Schema.Struct({
-  notificationId: Schema.String,
-  topic: DesktopNotificationTopicSchema,
-  createdAt: Schema.String,
-  route: Schema.optionalKey(DesktopNotificationRouteSchema),
-});
-export type DesktopNotificationActivation = typeof DesktopNotificationActivationSchema.Type;
-
-export const DesktopNotificationSupportSchema = Schema.Struct({
-  supported: Schema.Boolean,
-  platform: Schema.String,
-});
-export type DesktopNotificationSupport = typeof DesktopNotificationSupportSchema.Type;
-
 export interface DesktopBridge {
   getAppBranding: () => DesktopAppBranding | null;
   getLocalEnvironmentBootstrap: () => DesktopEnvironmentBootstrap | null;
@@ -472,11 +415,6 @@ export interface DesktopBridge {
   ) => Promise<T | null>;
   openExternal: (url: string) => Promise<boolean>;
   onMenuAction: (listener: (action: string) => void) => () => void;
-  getNotificationSupport: () => Promise<DesktopNotificationSupport>;
-  showNotification: (input: DesktopNotificationRequest) => Promise<DesktopNotificationResult>;
-  onNotificationActivated: (
-    listener: (activation: DesktopNotificationActivation) => void,
-  ) => () => void;
   getUpdateState: () => Promise<DesktopUpdateState>;
   setUpdateChannel: (channel: DesktopUpdateChannel) => Promise<DesktopUpdateState>;
   checkForUpdate: () => Promise<DesktopUpdateCheckResult>;

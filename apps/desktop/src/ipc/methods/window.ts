@@ -2,9 +2,6 @@ import {
   ContextMenuItemSchema,
   DesktopAppBrandingSchema,
   DesktopEnvironmentBootstrapSchema,
-  DesktopNotificationRequestSchema,
-  DesktopNotificationResultSchema,
-  DesktopNotificationSupportSchema,
   DesktopThemeSchema,
   PickFolderOptionsSchema,
 } from "@t3tools/contracts";
@@ -19,7 +16,6 @@ import * as ElectronMenu from "../../electron/ElectronMenu.ts";
 import * as ElectronShell from "../../electron/ElectronShell.ts";
 import * as ElectronTheme from "../../electron/ElectronTheme.ts";
 import * as ElectronWindow from "../../electron/ElectronWindow.ts";
-import * as DesktopNotificationService from "../../notifications/DesktopNotificationService.ts";
 import * as IpcChannels from "../channels.ts";
 import { makeIpcMethod, makeSyncIpcMethod } from "../DesktopIpc.ts";
 
@@ -135,25 +131,5 @@ export const openExternal = makeIpcMethod({
   handler: Effect.fn("desktop.ipc.window.openExternal")(function* (url) {
     const shell = yield* ElectronShell.ElectronShell;
     return yield* shell.openExternal(url);
-  }),
-});
-
-export const getNotificationSupport = makeIpcMethod({
-  channel: IpcChannels.NOTIFICATION_SUPPORT_CHANNEL,
-  payload: Schema.Void,
-  result: DesktopNotificationSupportSchema,
-  handler: Effect.fn("desktop.ipc.window.getNotificationSupport")(function* () {
-    const notifications = yield* DesktopNotificationService.DesktopNotificationService;
-    return yield* notifications.getSupport;
-  }),
-});
-
-export const showNotification = makeIpcMethod({
-  channel: IpcChannels.NOTIFICATION_SHOW_CHANNEL,
-  payload: DesktopNotificationRequestSchema,
-  result: DesktopNotificationResultSchema,
-  handler: Effect.fn("desktop.ipc.window.showNotification")(function* (input) {
-    const notifications = yield* DesktopNotificationService.DesktopNotificationService;
-    return yield* notifications.show(input);
   }),
 });

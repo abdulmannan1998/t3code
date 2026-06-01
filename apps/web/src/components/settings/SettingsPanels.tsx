@@ -424,10 +424,6 @@ export function useSettingsRestore(onRestored?: () => void) {
       ...(settings.confirmThreadDelete !== DEFAULT_UNIFIED_SETTINGS.confirmThreadDelete
         ? ["Delete confirmation"]
         : []),
-      ...(settings.desktopThreadNotificationsEnabled !==
-      DEFAULT_UNIFIED_SETTINGS.desktopThreadNotificationsEnabled
-        ? ["Desktop notifications"]
-        : []),
       ...(isGitWritingModelDirty ? ["Git writing model"] : []),
     ],
     [
@@ -435,7 +431,6 @@ export function useSettingsRestore(onRestored?: () => void) {
       settings.autoOpenPlanSidebar,
       settings.confirmThreadArchive,
       settings.confirmThreadDelete,
-      settings.desktopThreadNotificationsEnabled,
       settings.addProjectBaseDirectory,
       settings.defaultThreadEnvMode,
       settings.diffIgnoreWhitespace,
@@ -471,7 +466,6 @@ export function useSettingsRestore(onRestored?: () => void) {
       addProjectBaseDirectory: DEFAULT_UNIFIED_SETTINGS.addProjectBaseDirectory,
       confirmThreadArchive: DEFAULT_UNIFIED_SETTINGS.confirmThreadArchive,
       confirmThreadDelete: DEFAULT_UNIFIED_SETTINGS.confirmThreadDelete,
-      desktopThreadNotificationsEnabled: DEFAULT_UNIFIED_SETTINGS.desktopThreadNotificationsEnabled,
       textGenerationModelSelection: DEFAULT_UNIFIED_SETTINGS.textGenerationModelSelection,
     });
     onRestored?.();
@@ -487,7 +481,6 @@ export function GeneralSettingsPanel() {
   const { theme, setTheme } = useTheme();
   const settings = useSettings();
   const { updateSettings } = useUpdateSettings();
-  const [isTestingNotifications, setIsTestingNotifications] = useState(false);
   const observability = useServerObservability();
   const serverProviders = useServerProviders();
   const diagnosticsDescription = formatDiagnosticsDescription({
@@ -519,84 +512,6 @@ export function GeneralSettingsPanel() {
   const isGitWritingModelDirty = !Equal.equals(
     settings.textGenerationModelSelection ?? null,
     DEFAULT_UNIFIED_SETTINGS.textGenerationModelSelection ?? null,
-  );
-  const hasDesktopNotificationBridge =
-    isElectron &&
-    typeof window !== "undefined" &&
-    typeof window.desktopBridge?.getNotificationSupport === "function" &&
-    typeof window.desktopBridge.showNotification === "function";
-
-  const handleDesktopNotificationsChange = useCallback(
-    (checked: boolean) => {
-      const nextEnabled = Boolean(checked);
-      if (!nextEnabled) {
-        updateSettings({ desktopThreadNotificationsEnabled: false });
-        return;
-      }
-
-      const bridge = window.desktopBridge;
-      if (!bridge) {
-        return;
-      }
-
-      setIsTestingNotifications(true);
-      void bridge
-        .getNotificationSupport()
-        .then((support) => {
-          if (!support.supported) {
-            toastManager.add(
-              stackedThreadToast({
-                type: "error",
-                title: "Desktop notifications unavailable",
-                description: "This system does not support desktop notifications.",
-              }),
-            );
-            return null;
-          }
-
-          const notificationId = `permission-test:${Date.now()}`;
-          return bridge.showNotification({
-            notificationId,
-            dedupeKey: notificationId,
-            topic: "permission-test",
-            severity: "info",
-            title: "T3 Code notifications enabled",
-            body: "Thread updates will appear here.",
-          });
-        })
-        .then((result) => {
-          if (result === null) {
-            return;
-          }
-          if (result.status === "shown" || result.status === "suppressed") {
-            updateSettings({ desktopThreadNotificationsEnabled: true });
-            return;
-          }
-          toastManager.add(
-            stackedThreadToast({
-              type: "error",
-              title: "Desktop notifications blocked",
-              description:
-                result.message ??
-                "macOS notification permission or app signing may be blocking notifications.",
-            }),
-          );
-        })
-        .catch((error: unknown) => {
-          toastManager.add(
-            stackedThreadToast({
-              type: "error",
-              title: "Could not enable desktop notifications",
-              description:
-                error instanceof Error ? error.message : "Notification permission check failed.",
-            }),
-          );
-        })
-        .finally(() => {
-          setIsTestingNotifications(false);
-        });
-    },
-    [updateSettings],
   );
 
   return (
@@ -779,35 +694,6 @@ export function GeneralSettingsPanel() {
             />
           }
         />
-
-        {hasDesktopNotificationBridge ? (
-          <SettingsRow
-            title="Desktop notifications"
-            description="Notify when a thread needs attention or finishes while you are working elsewhere."
-            resetAction={
-              settings.desktopThreadNotificationsEnabled !==
-              DEFAULT_UNIFIED_SETTINGS.desktopThreadNotificationsEnabled ? (
-                <SettingResetButton
-                  label="desktop notifications"
-                  onClick={() =>
-                    updateSettings({
-                      desktopThreadNotificationsEnabled:
-                        DEFAULT_UNIFIED_SETTINGS.desktopThreadNotificationsEnabled,
-                    })
-                  }
-                />
-              ) : null
-            }
-            control={
-              <Switch
-                checked={settings.desktopThreadNotificationsEnabled}
-                disabled={isTestingNotifications}
-                onCheckedChange={(checked) => handleDesktopNotificationsChange(Boolean(checked))}
-                aria-label="Enable desktop thread notifications"
-              />
-            }
-          />
-        ) : null}
 
         <SettingsRow
           title="New threads"

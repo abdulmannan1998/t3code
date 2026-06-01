@@ -44,7 +44,6 @@ import * as DesktopSshRemoteApi from "./ssh/DesktopSshRemoteApi.ts";
 import * as DesktopState from "./app/DesktopState.ts";
 import * as DesktopUpdates from "./updates/DesktopUpdates.ts";
 import * as DesktopWindow from "./window/DesktopWindow.ts";
-import * as DesktopNotificationService from "./notifications/DesktopNotificationService.ts";
 
 const desktopEnvironmentLayer = Layer.unwrap(
   Effect.gen(function* () {
@@ -94,7 +93,7 @@ const desktopSshEnvironmentLayer = Layer.unwrap(
   }),
 );
 
-const electronBaseLayer = Layer.mergeAll(
+const electronLayer = Layer.mergeAll(
   ElectronApp.layer,
   ElectronDialog.layer,
   ElectronMenu.layer,
@@ -106,7 +105,6 @@ const electronBaseLayer = Layer.mergeAll(
   ElectronWindow.layer,
   Layer.succeed(DesktopIpc.DesktopIpc, DesktopIpc.make(Electron.ipcMain)),
 );
-const electronLayer = DesktopNotificationService.layer.pipe(Layer.provideMerge(electronBaseLayer));
 
 const desktopFoundationLayer = Layer.mergeAll(
   DesktopState.layer,
