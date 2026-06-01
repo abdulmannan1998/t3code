@@ -42,7 +42,7 @@
     "build": "turbo run build",
     "build:marketing": "turbo run build --filter=@t3tools/marketing",
     "build:desktop": "turbo run build --filter=@t3tools/desktop --filter=t3",
-    "typecheck": "turbo run typecheck",
+    "typecheck": "turbo run typecheck --concurrency=1",
     "lint": "oxlint --report-unused-disable-directives",
     "lint:mobile": "node scripts/mobile-native-static-check.ts",
     "test": "turbo run test",
